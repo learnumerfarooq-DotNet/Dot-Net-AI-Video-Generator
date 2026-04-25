@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.DS_Store
+.idea/
+.vscode/
+
+# Angular
+node_modules/
+dist/
+.angular/
+coverage/
+
+# Misc
+*.log
+.env
+appsettings.Development.json

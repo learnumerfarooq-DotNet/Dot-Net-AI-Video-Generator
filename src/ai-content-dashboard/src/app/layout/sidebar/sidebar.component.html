@@ -1,0 +1,26 @@
+<aside class="side-menu">
+  <div class="brand-block">
+    <span class="brand-mark">AI</span>
+    <div class="brand-copy">
+      <strong>Content Factory</strong>
+      <span>{{ store.currentSideTabLabel() || store.currentSectionLabel() }}</span>
+    </div>
+    <button type="button" class="icon-button drawer-toggle desktop-only" (click)="store.toggleSidebar()">
+      <i class="fa-solid" [class.fa-bars]="store.sidebarCollapsed()" [class.fa-angle-left]="!store.sidebarCollapsed()"></i>
+    </button>
+  </div>
+
+  <nav class="side-tabs" aria-label="Section side menu">
+    <button
+      type="button"
+      *ngFor="let tab of store.sideTabs()"
+      [class.active]="store.activeSideTab() === tab.id"
+      (click)="store.setSideTab(tab.id)">
+      <span class="tab-main">
+        <i class="fa-solid" [ngClass]="tab.icon"></i>
+        <span class="tab-label">{{ tab.label }}</span>
+      </span>
+      <strong>{{ tab.badgeValue }}</strong>
+    </button>
+  </nav>
+</aside>

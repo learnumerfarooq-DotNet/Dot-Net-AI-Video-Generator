@@ -1,0 +1,146 @@
+:host {
+  display: block;
+}
+
+.side-menu {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-strong) 86%, transparent);
+  padding: 24px 18px;
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 58px;
+  margin-bottom: 26px;
+  padding: 6px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), #25a18e);
+  box-shadow: var(--shadow-soft);
+  font-weight: 950;
+}
+
+.brand-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.brand-copy strong {
+  font-size: 1rem;
+}
+
+.brand-copy span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.side-tabs {
+  display: grid;
+  gap: 10px;
+}
+
+.side-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0 13px;
+  color: var(--muted-strong);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  cursor: pointer;
+}
+
+.side-tabs button:hover {
+  border-color: var(--border-soft);
+  background: var(--surface-soft);
+}
+
+.side-tabs button.active {
+  color: var(--primary-strong);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: var(--primary-soft);
+  transform: translateX(2px);
+}
+
+.tab-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tab-main i {
+  width: 18px;
+  text-align: center;
+  font-size: 0.92rem;
+}
+
+.tab-label {
+  white-space: nowrap;
+}
+
+strong {
+  min-width: 34px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--muted-strong);
+  background: var(--surface);
+  text-align: center;
+  font-size: 0.76rem;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted-strong);
+  background: var(--surface-strong);
+  cursor: pointer;
+}
+
+:host(.collapsed) .brand-copy,
+:host(.collapsed) strong,
+:host(.collapsed) .tab-label,
+:host(.collapsed) .drawer-toggle {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-6px);
+}
+
+:host(.collapsed) .brand-block {
+  justify-content: center;
+}
+
+:host(.collapsed) .side-tabs button {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+:host(.collapsed) .tab-main {
+  justify-content: center;
+}

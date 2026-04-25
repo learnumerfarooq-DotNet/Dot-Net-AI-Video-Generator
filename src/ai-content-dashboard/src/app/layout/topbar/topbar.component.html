@@ -1,0 +1,38 @@
+<header class="topbar">
+  <div class="topbar-left">
+    <button type="button" class="icon-button" (click)="store.toggleSidebar()">
+      <i class="fa-solid" [class.fa-bars]="store.sidebarCollapsed()" [class.fa-panel-left]="!store.sidebarCollapsed()"></i>
+    </button>
+
+    <nav class="page-tabs" aria-label="Top sections">
+      <button
+        type="button"
+        *ngFor="let section of store.sections()"
+        [class.active]="store.activeSection() === section.id"
+        (click)="store.setSection(section.id)">
+        <i class="fa-solid" [ngClass]="section.icon"></i>
+        <span>{{ section.label }}</span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="top-actions">
+    <span>{{ store.status() }}</span>
+
+    <div class="theme-toggle" aria-label="Theme mode">
+      <button type="button" [class.active]="store.theme() === 'light'" (click)="store.setTheme('light')">
+        <i class="fa-regular fa-sun"></i>
+        <span>Light</span>
+      </button>
+      <button type="button" [class.active]="store.theme() === 'dark'" (click)="store.setTheme('dark')">
+        <i class="fa-regular fa-moon"></i>
+        <span>Dark</span>
+      </button>
+    </div>
+
+    <button type="button" class="ghost-button" (click)="store.refreshAll()">
+      <i class="fa-solid fa-rotate-right"></i>
+      <span>Refresh</span>
+    </button>
+  </div>
+</header>

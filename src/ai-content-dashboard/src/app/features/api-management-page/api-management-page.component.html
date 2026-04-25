@@ -1,0 +1,125 @@
+<section class="page-stack">
+  <section class="panel api-panel">
+    <div class="panel-heading">
+      <div>
+        <h2>API Management Placeholder</h2>
+        <span>Legacy provider state was removed from the store, so this page now works locally only.</span>
+      </div>
+      <button type="button" (click)="saveProviders()">
+        <i class="fa-solid fa-floppy-disk"></i>
+        <span>Save Locally</span>
+      </button>
+    </div>
+
+    <p class="placeholder-note">{{ status }}</p>
+
+    <div class="api-grid">
+      <label class="field-card">
+        <span class="field-title"><i class="fa-solid fa-brain"></i><span>Brain / Text API</span></span>
+        <div class="select-shell">
+          <select [(ngModel)]="providers.textProvider" name="textProvider">
+            <option *ngFor="let option of providerOptions.textProvider" [value]="option">{{ option }}</option>
+          </select>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+      </label>
+
+      <label class="field-card">
+        <span class="field-title"><i class="fa-solid fa-film"></i><span>Video API</span></span>
+        <div class="select-shell">
+          <select [(ngModel)]="providers.videoProvider" name="videoProvider">
+            <option *ngFor="let option of providerOptions.videoProvider" [value]="option">{{ option }}</option>
+          </select>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+      </label>
+
+      <label class="field-card">
+        <span class="field-title"><i class="fa-solid fa-upload"></i><span>Upload API</span></span>
+        <div class="select-shell">
+          <select [(ngModel)]="providers.uploadProvider" name="uploadProvider">
+            <option *ngFor="let option of providerOptions.uploadProvider" [value]="option">{{ option }}</option>
+          </select>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+      </label>
+
+      <label class="field-card">
+        <span class="field-title"><i class="fa-solid fa-database"></i><span>Storage API</span></span>
+        <div class="select-shell">
+          <select [(ngModel)]="providers.storageProvider" name="storageProvider">
+            <option *ngFor="let option of providerOptions.storageProvider" [value]="option">{{ option }}</option>
+          </select>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+      </label>
+    </div>
+  </section>
+
+  <section class="provider-requirements">
+    <article class="panel requirement-card" *ngFor="let requirement of selectedRequirements">
+      <div class="panel-heading">
+        <div>
+          <h2>{{ requirement.displayName }}</h2>
+          <span>{{ requirement.providerType }}</span>
+        </div>
+        <a *ngIf="requirement.documentationUrl" [href]="requirement.documentationUrl" target="_blank" rel="noreferrer">Docs</a>
+      </div>
+
+      <p class="requirement-note">{{ requirement.notes }}</p>
+
+      <div class="credential-grid" *ngIf="requirement.fields.length > 0; else noCredentialBlock">
+        <label *ngFor="let field of requirement.fields">
+          <span>
+            {{ field.label }}
+            <small *ngIf="isCredentialSaved(requirement, field)">Saved</small>
+          </span>
+          <div class="input-shell">
+            <i class="fa-solid" [class.fa-key]="field.inputType === 'password'" [class.fa-link]="field.inputType !== 'password'"></i>
+            <input
+              [type]="field.inputType"
+              [placeholder]="isCredentialSaved(requirement, field) ? 'Stored in this page only' : field.helpText"
+              [ngModel]="credentialValue(requirement, field)"
+              (ngModelChange)="updateCredential(requirement, field, $event)"
+              [name]="requirement.id + '-' + field.key" />
+          </div>
+          <em>{{ field.helpText }}</em>
+        </label>
+      </div>
+
+      <ng-template #noCredentialBlock>
+        <p class="empty-state">No external credential is required for this placeholder provider.</p>
+      </ng-template>
+    </article>
+  </section>
+
+  <section class="map-grid">
+    <article *ngFor="let item of providerMap">
+      <span>{{ item.label }}</span>
+      <strong>{{ item.provider }}</strong>
+    </article>
+  </section>
+
+  <section class="content-grid single">
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Placeholder Status</h2>
+        <span>{{ lastSavedAt ? ('Saved at ' + lastSavedAt) : 'No local save yet' }}</span>
+      </div>
+      <article class="status-row">
+        <div>
+          <strong>Persistence</strong>
+          <span>{{ status }}</span>
+        </div>
+        <small class="status-pill">Local only</small>
+      </article>
+      <article class="status-row">
+        <div>
+          <strong>Next migration path</strong>
+          <span>Use the live settings pages for real backend-connected provider configuration.</span>
+        </div>
+        <small class="status-pill">Safe</small>
+      </article>
+    </section>
+  </section>
+</section>

@@ -1,0 +1,11 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\AiContentFactory.Api",
+    "\\AiContentFactory.Application",
+    "\\AiContentFactory.Domain",
+    "\\AiContentFactory.Infrastructure"
+  ],
+  "SelectedNode": "\\AiContentFactory.Api\\AiContentFactory.Api.csproj",
+  "PreviewInSolutionExplorer": false
+}

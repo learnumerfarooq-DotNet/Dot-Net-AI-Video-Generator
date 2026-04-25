@@ -1,0 +1,274 @@
+<ng-container [ngSwitch]="store.activeSideTab()">
+  <ng-container *ngSwitchCase="'dashboard-overview'">
+    <section class="metric-grid" *ngIf="store.dashboard() as dashboard; else dashboardUnavailable">
+      <article class="metric-card">
+        <span>API Series</span>
+        <strong>{{ dashboard.usageSeries.length }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Global Memory</span>
+        <strong>{{ dashboard.memoryCounts.globalApproved }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Ready To Upload</span>
+        <strong>{{ dashboard.readyVideos.length }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Recently Published</span>
+        <strong>{{ dashboard.recentlyPublished.length }}</strong>
+      </article>
+
+      <section class="content-grid two-col section-span">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Pipeline Snapshot</h2>
+            <span>Self-Improving Loop</span>
+          </div>
+
+          <div class="pipeline-widget">
+            <div class="pipeline-step active">
+               <i class="fa-solid fa-lightbulb"></i>
+               <span>Create</span>
+            </div>
+            <div class="pipeline-connector active"></div>
+            <div class="pipeline-step active">
+               <i class="fa-solid fa-gears"></i>
+               <span>Execute</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step">
+               <i class="fa-solid fa-cloud-arrow-up"></i>
+               <span>Upload</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step">
+               <i class="fa-solid fa-chart-line"></i>
+               <span>Analyze</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step highlight">
+               <i class="fa-solid fa-brain"></i>
+               <span>Improve</span>
+            </div>
+          </div>
+
+          <div class="list-stack">
+            <article class="list-row">
+              <strong>Backlog waiting</strong>
+              <span>{{ dashboard.backlogVideos.length }} videos in Google Drive backlog folders</span>
+            </article>
+            <article class="list-row">
+              <strong>Ready to upload</strong>
+              <span>{{ dashboard.readyVideos.length }} videos already prepared for publishing agents</span>
+            </article>
+            <article class="list-row">
+              <strong>Memory review</strong>
+              <span>{{ dashboard.memoryCounts.pendingReview }} new learnings waiting for approval</span>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Recent Agent Runs</h2>
+            <span>{{ dashboard.recentRuns.length }} latest</span>
+          </div>
+
+          <article class="list-row" *ngFor="let run of dashboard.recentRuns">
+            <div>
+              <strong>{{ run.title }}</strong>
+              <span>{{ run.agentKey }} / {{ run.status }}</span>
+            </div>
+            <small>{{ run.queuedAt | date:'MMM d, h:mm a' }}</small>
+          </article>
+        </section>
+      </section>
+    </section>
+  </ng-container>
+
+  <ng-container *ngSwitchCase="'dashboard-usage'">
+    <section class="content-grid usage-grid" *ngIf="store.dashboard() as dashboard; else dashboardUnavailable">
+      <section class="panel usage-card" *ngFor="let series of dashboard.usageSeries">
+        <div class="panel-heading">
+          <div>
+            <h2>{{ series.agentName }}</h2>
+            <span>{{ series.agentKey }}</span>
+          </div>
+          <strong [style.color]="series.accentColor">{{ series.points.length }} pts</strong>
+        </div>
+
+        <div class="mini-chart">
+          <div class="chart-bar" *ngFor="let point of series.points">
+            <span class="bar" [style.height.%]="usageHeight(point, series)" [style.background]="series.accentColor"></span>
+            <small>{{ point.capturedAt | date:'EEE' }}</small>
+          </div>
+        </div>
+
+        <div class="stat-row" *ngIf="latestUsagePoint(series) as latest">
+          <span>{{ latest.requestCount }} requests</span>
+          <span>{{ latest.tokensIn + latest.tokensOut }} tokens</span>
+          <span>${{ latest.costUsd }}</span>
+        </div>
+      </section>
+    </section>
+  </ng-container>
+
+  <ng-container *ngSwitchCase="'dashboard-memory'">
+    <section class="content-grid two-col" *ngIf="store.memory() as memory; else memoryUnavailable">
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Memory Totals</h2>
+          <span>Approved and pending</span>
+        </div>
+
+        <div class="list-stack">
+          <article class="list-row">
+            <strong>Global Memory</strong>
+            <span>{{ memory.counts.globalApproved }} approved items</span>
+          </article>
+          <article class="list-row">
+            <strong>Local Memory</strong>
+            <span>{{ memory.counts.localApproved }} approved items</span>
+          </article>
+          <article class="list-row">
+            <strong>Review Queue</strong>
+            <span>{{ memory.counts.pendingReview }} items waiting</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Pending Review</h2>
+          <span>{{ memory.reviewQueue.length }} items</span>
+        </div>
+
+        <article class="list-row" *ngFor="let item of memory.reviewQueue">
+          <div>
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.agentKey || 'global' }} / {{ item.tags.join(', ') }}</span>
+          </div>
+          <small>{{ item.createdAt | date:'MMM d, h:mm a' }}</small>
+        </article>
+      </section>
+    </section>
+  </ng-container>
+
+  <ng-container *ngSwitchCase="'dashboard-drive'">
+    <section class="content-grid two-col" *ngIf="store.dashboard() as dashboard; else dashboardUnavailable">
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Ready To Upload</h2>
+          <span>{{ dashboard.readyVideos.length }} videos</span>
+        </div>
+
+        <article class="list-row" *ngFor="let video of dashboard.readyVideos">
+          <div>
+            <strong>{{ video.title }}</strong>
+            <span>{{ video.storageFolder }} / {{ video.platforms.join(', ') }}</span>
+          </div>
+          <small>{{ video.driveFileId }}</small>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Backlog Folder</h2>
+          <span>{{ dashboard.backlogVideos.length }} videos</span>
+        </div>
+
+        <article class="list-row actionable" *ngFor="let video of dashboard.backlogVideos">
+          <div>
+            <strong>{{ video.title }}</strong>
+            <span>{{ video.storageFolder }} / {{ video.platforms.join(', ') }}</span>
+          </div>
+          <button type="button" class="ghost-button small" (click)="store.moveVideoStage(video.id, 'ReadyToUpload')">Mark Ready</button>
+        </article>
+      </section>
+    </section>
+  </ng-container>
+
+  <ng-container *ngSwitchCase="'dashboard-published'">
+    <section class="content-grid two-col" *ngIf="store.dashboard() as dashboard; else dashboardUnavailable">
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Platform Widgets</h2>
+          <span>Published stats</span>
+        </div>
+
+        <div class="widget-grid">
+          <article class="widget-card" *ngFor="let item of dashboard.publishedWidgets">
+            <strong>{{ item.platform }}</strong>
+            <span>{{ item.publishedCount }} published</span>
+            <span>{{ item.scheduledCount }} scheduled</span>
+            <span>{{ item.failedCount }} failed</span>
+            <b>{{ item.totalViews | number }} views</b>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>Recently Published</h2>
+          <span>{{ dashboard.recentlyPublished.length }} videos</span>
+        </div>
+
+        <article class="list-row" *ngFor="let video of dashboard.recentlyPublished">
+          <div>
+            <strong>{{ video.title }}</strong>
+            <span>{{ video.platforms.join(', ') }}</span>
+          </div>
+          <small>{{ video.publishedAt | date:'MMM d' }}</small>
+        </article>
+      </section>
+    </section>
+  </ng-container>
+
+  <section class="content-grid single" *ngSwitchCase="'dashboard-growth'">
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Month 2 Expansion</h2>
+        <span>Ready for later stats</span>
+      </div>
+
+      <div class="list-stack">
+        <article class="list-row">
+          <strong>Performance analytics</strong>
+          <span>Add watch-time, CTR, audience retention, and revenue widgets later.</span>
+        </article>
+        <article class="list-row">
+          <strong>Cross-platform scorecards</strong>
+          <span>Track YouTube, TikTok, Instagram, Facebook, LinkedIn, and future channels separately.</span>
+        </article>
+        <article class="list-row">
+          <strong>Self-improvement loop</strong>
+          <span>Promote strong learnings into global memory after a monthly review cycle.</span>
+        </article>
+      </div>
+    </section>
+  </section>
+
+  <ng-template #dashboardUnavailable>
+    <section class="content-grid single">
+      <section class="panel empty-panel">
+        <div class="panel-heading">
+          <h2>Dashboard Snapshot</h2>
+          <span>{{ store.status() }}</span>
+        </div>
+        <p class="empty-state">Workspace metrics will appear here after the next successful sync.</p>
+      </section>
+    </section>
+  </ng-template>
+
+  <ng-template #memoryUnavailable>
+    <section class="content-grid single">
+      <section class="panel empty-panel">
+        <div class="panel-heading">
+          <h2>Memory Signals</h2>
+          <span>{{ store.status() }}</span>
+        </div>
+        <p class="empty-state">Memory metrics will appear here after the next successful sync.</p>
+      </section>
+    </section>
+  </ng-template>
+</ng-container>

@@ -1,0 +1,150 @@
+.page-stack,
+.content-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.content-grid {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 30px 30px;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+  padding: 20px;
+}
+
+.task-panel,
+label {
+  display: grid;
+  gap: 12px;
+}
+
+.panel-heading,
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panel-heading {
+  margin-bottom: 18px;
+}
+
+.panel-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.panel-heading span,
+.empty-state,
+.result-row p,
+.placeholder-note {
+  color: var(--muted);
+}
+
+.placeholder-note {
+  margin: 0 0 6px;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+label {
+  color: var(--muted-strong);
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px 14px;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--surface-strong), var(--surface));
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.toggle-row {
+  justify-content: flex-start;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 11px;
+  padding: 0 15px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.status-pill {
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.result-row {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+  margin-bottom: 14px;
+}
+
+.result-row strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.result-row:last-of-type {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .content-grid {
+    padding: 0 20px 20px;
+  }
+
+  .two-col {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel-heading {
+    align-items: flex-start;
+  }
+}

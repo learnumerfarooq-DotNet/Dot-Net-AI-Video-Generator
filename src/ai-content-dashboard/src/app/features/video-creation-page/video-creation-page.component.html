@@ -1,0 +1,97 @@
+<section class="page-stack">
+  <section class="content-grid single">
+    <form class="panel task-panel" (ngSubmit)="runTask()">
+      <div class="panel-heading">
+        <div>
+          <h2>Video Creation Placeholder</h2>
+          <span>Legacy task execution is disconnected. This form now generates local preview data only.</span>
+        </div>
+        <button type="submit" [disabled]="running">
+          <i class="fa-solid fa-play"></i>
+          <span>{{ running ? 'Running...' : 'Create Preview' }}</span>
+        </button>
+      </div>
+
+      <p class="placeholder-note">{{ status }}</p>
+
+      <label>
+        Topic
+        <input [(ngModel)]="task.topic" name="topic" required />
+      </label>
+
+      <div class="two-col">
+        <label>
+          Platform
+          <select [(ngModel)]="task.platform" name="platform">
+            <option value="youtube">YouTube</option>
+            <option value="tiktok">TikTok</option>
+            <option value="instagram">Instagram</option>
+            <option value="linkedin">LinkedIn</option>
+          </select>
+        </label>
+
+        <label>
+          Format
+          <select [(ngModel)]="task.format" name="format">
+            <option value="short">Short</option>
+            <option value="longform">Longform</option>
+            <option value="carousel">Carousel</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        Audience
+        <input [(ngModel)]="task.audience" name="audience" />
+      </label>
+
+      <label>
+        Goal
+        <textarea [(ngModel)]="task.goal" name="goal" rows="4"></textarea>
+      </label>
+
+      <label class="toggle-row">
+        <input type="checkbox" [(ngModel)]="task.autoSaveLocalMemory" name="autoSaveLocalMemory" />
+        <span>Auto-save local agent memory</span>
+      </label>
+    </form>
+  </section>
+
+  <section class="content-grid single">
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Script Output</h2>
+          <span>{{ latestRun ? latestRun.topic : 'No task yet' }}</span>
+        </div>
+        <small class="status-pill">{{ latestRun ? latestRun.createdAt : 'Waiting' }}</small>
+      </div>
+
+      <article class="result-row" *ngFor="let result of latestRun?.agentResults ?? []">
+        <strong>{{ result.agentName }}</strong>
+        <p>{{ result.summary }}</p>
+      </article>
+
+      <p class="empty-state" *ngIf="!latestRun">Create a local preview task first.</p>
+    </section>
+  </section>
+
+  <section class="content-grid single">
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Ready Videos</h2>
+          <span>{{ readyItems }} local previews</span>
+        </div>
+        <small class="status-pill">Placeholder</small>
+      </div>
+
+      <article class="result-row" *ngFor="let item of readyVideoItems">
+        <strong>{{ item.topic }}</strong>
+        <p>{{ item.platform }} / {{ item.format }}</p>
+      </article>
+
+      <p class="empty-state" *ngIf="readyItems === 0">No preview items yet.</p>
+    </section>
+  </section>
+</section>

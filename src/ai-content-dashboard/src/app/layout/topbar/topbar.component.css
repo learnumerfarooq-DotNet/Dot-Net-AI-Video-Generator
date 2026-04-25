@@ -1,0 +1,123 @@
+:host {
+  display: block;
+}
+
+.topbar,
+.topbar-left,
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  min-height: 78px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+  padding: 0 28px;
+  backdrop-filter: blur(14px);
+}
+
+.topbar-left {
+  min-width: 0;
+}
+
+.page-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.page-tabs button,
+.theme-toggle button,
+.icon-button,
+.ghost-button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.page-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  padding: 0 16px;
+  color: var(--muted-strong);
+  background: transparent;
+  font-weight: 850;
+}
+
+.page-tabs button.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted-strong);
+  background: var(--surface-strong);
+}
+
+.theme-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  background: var(--surface);
+}
+
+.theme-toggle button,
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.theme-toggle button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: var(--muted-strong);
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.theme-toggle button.active {
+  color: var(--text);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.ghost-button {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 0 15px;
+  color: var(--text);
+  background: var(--surface-strong);
+  font-weight: 900;
+}
+
+.top-actions > span {
+  color: var(--muted);
+}

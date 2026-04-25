@@ -1,0 +1,6 @@
+{
+  "textProvider": "Template",
+  "videoProvider": "Manual",
+  "uploadProvider": "DryRun",
+  "storageProvider": "LocalJson"
+}
