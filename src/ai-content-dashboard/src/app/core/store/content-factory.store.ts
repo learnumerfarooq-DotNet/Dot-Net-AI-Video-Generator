@@ -51,6 +51,9 @@ type StudioState = {
   task: LegacyVideoTaskDraft;
   latestTaskRun: LegacyVideoTaskRun | null;
   pendingMemorySuggestions: MemorySuggestionDto[];
+  driveFiles: any[];
+  driveConfig: any | null;
+  loadingDrive: boolean;
 };
 
 const initialState: StudioState = {
@@ -73,7 +76,10 @@ const initialState: StudioState = {
   providerCredentials: {},
   task: INITIAL_VIDEO_TASK,
   latestTaskRun: null,
-  pendingMemorySuggestions: []
+  pendingMemorySuggestions: [],
+  driveFiles: [],
+  driveConfig: null,
+  loadingDrive: false
 };
 
 const apiBase = 'http://localhost:5039';
@@ -304,7 +310,8 @@ export const ContentFactoryStore = signalStore(
       pendingMemorySuggestions: computed<MemorySuggestionDto[]>(() => store.pendingMemorySuggestions()),
       latestRun: computed(() => store.latestTaskRun()),
       readyVideoItems,
-      readyItems: computed(() => readyVideoItems().length)
+      readyItems: computed(() => readyVideoItems().length),
+      isDriveConfigured: computed(() => !!store.driveConfig()?.clientId && !!store.driveConfig()?.refreshToken)
     };
   }),
   withMethods((store, http = inject(HttpClient)) => ({
@@ -331,9 +338,16 @@ export const ContentFactoryStore = signalStore(
     },
 
     setSection(section: TopSectionId) {
+      let activeSideTab = MENU_BY_SECTION[section][0].id;
+      
+      // If drive is not configured, force config tab
+      if (section === 'drive' && !store.isDriveConfigured()) {
+        activeSideTab = 'drive-config';
+      }
+
       patchState(store, {
         activeSection: section,
-        activeSideTab: MENU_BY_SECTION[section][0].id
+        activeSideTab: activeSideTab
       });
     },
 
@@ -508,6 +522,7 @@ export const ContentFactoryStore = signalStore(
           settingsDrafts: buildSettingsDrafts(workspace),
           providers: buildProviderSelections(workspace),
           providerCredentials: buildProviderCredentialDrafts(workspace),
+          driveConfig: workspace.drive,
           loading: false,
           status: `Workspace synced at ${new Date(workspace.generatedAt).toLocaleTimeString()}.`
         });
@@ -589,6 +604,56 @@ export const ContentFactoryStore = signalStore(
         patchState(store, {
           creatingManualSchedule: false,
           status: `Manual schedule failed: ${readErrorMessage(error)}`
+        });
+      }
+    },
+
+    async saveDriveConfig(config: any) {
+      patchState(store, { status: 'Saving global Drive configuration...', loadingDrive: true });
+      try {
+        const saved = await firstValueFrom(http.put<any>(`${apiBase}/api/drive/config`, config));
+        patchState(store, { 
+          driveConfig: saved,
+          loadingDrive: false,
+          status: 'Global Drive configuration saved to backend.' 
+        });
+        await this.loadDriveFiles();
+      } catch (error) {
+        patchState(store, { 
+          loadingDrive: false, 
+          status: `Drive config failed: ${readErrorMessage(error)}` 
+        });
+      }
+    },
+
+    async createDriveFolder(name: string) {
+      patchState(store, { loadingDrive: true, status: 'Creating folder in Drive...' });
+      try {
+        const folder = await firstValueFrom(http.post<any>(`${apiBase}/api/drive/folders`, { name }));
+        patchState(store, (state) => ({ 
+          driveFiles: [folder, ...state.driveFiles],
+          loadingDrive: false, 
+          status: `Folder '${name}' created.` 
+        }));
+      } catch (error) {
+        patchState(store, { 
+          loadingDrive: false, 
+          status: `Folder creation failed: ${readErrorMessage(error)}` 
+        });
+      }
+    },
+
+    async loadDriveFiles() {
+      if (!store.isDriveConfigured()) return;
+      patchState(store, { loadingDrive: true, status: 'Fetching Drive files...' });
+      try {
+        // Mock data for explorer
+        const files = await firstValueFrom(http.get<any[]>(`${apiBase}/api/drive/files`));
+        patchState(store, { driveFiles: files, loadingDrive: false, status: 'Drive explorer synced.' });
+      } catch (error) {
+        patchState(store, { 
+          loadingDrive: false, 
+          status: `Drive sync failed: ${readErrorMessage(error)}` 
         });
       }
     },
@@ -902,6 +967,10 @@ function getBadgeValue(token: string, agentKey: string | undefined, workspace: W
       return workspace.scheduler.retryJobs.length;
     case 'queueScheduleCount':
       return workspace.scheduler.queueJobs.length;
+    case 'driveFiles':
+      return 'Browse';
+    case 'driveStatus':
+      return 'Config';
     default:
       return '';
   }

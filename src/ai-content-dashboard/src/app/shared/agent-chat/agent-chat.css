@@ -1,0 +1,139 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Chat Section */
+.chat-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-history {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  margin-bottom: 8px;
+  min-height: 0;
+  scroll-behavior: smooth;
+  box-sizing: border-box;
+}
+
+.message {
+  max-width: 80%;
+  padding: 16px 20px;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.message.user {
+  align-self: flex-end;
+  background: var(--primary);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-composer {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center; /* Center vertically for single line */
+  gap: 12px;
+  box-shadow: var(--shadow-soft);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+
+.chat-composer textarea {
+  flex: 1;
+  background: transparent !important;
+  border: none !important;
+  padding: 8px 0 !important;
+  max-height: 120px;
+  min-height: 40px;
+  line-height: 1.5;
+  resize: none;
+  color: var(--text);
+  font-size: 0.95rem;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.chat-composer textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.send-button {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: white;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.send-button:hover {
+  background: var(--primary-strong);
+  transform: scale(1.05);
+}
+
+/* Connect Guard */
+.connect-guard {
+  padding: 40px;
+  text-align: center;
+  background: var(--primary-soft);
+  border: 1px dashed var(--primary);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.connect-guard i {
+  font-size: 2.5rem;
+  color: var(--primary);
+}
+
+.connect-guard h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.connect-guard p {
+  margin: 0;
+  color: var(--muted-strong);
+  max-width: 320px;
+}

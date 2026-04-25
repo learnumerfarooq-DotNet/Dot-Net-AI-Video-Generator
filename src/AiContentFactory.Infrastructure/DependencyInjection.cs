@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddHttpClient<IChatProvider, OpenRouterChatProvider>();
         services.AddScoped<IContentAgent, ScriptAgent>();
         services.AddScoped<IContentAgent, UploadAgent>();
+        services.AddHttpClient<IGoogleDriveService, GoogleDriveService>();
         services.AddHostedService<AgentSchedulerService>();
         return services;
     }

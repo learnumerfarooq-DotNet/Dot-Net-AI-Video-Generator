@@ -5,14 +5,13 @@
     </button>
 
     <nav class="page-tabs" aria-label="Top sections">
-      <button
-        type="button"
+      <a
         *ngFor="let section of store.sections()"
-        [class.active]="store.activeSection() === section.id"
-        (click)="store.setSection(section.id)">
+        [routerLink]="sectionPath(section.id)"
+        [class.active]="store.activeSection() === section.id">
         <i class="fa-solid" [ngClass]="section.icon"></i>
         <span>{{ section.label }}</span>
-      </button>
+      </a>
     </nav>
   </div>
 
@@ -30,9 +29,37 @@
       </button>
     </div>
 
+    <a class="ghost-button" [routerLink]="['/drive/explorer']" (click)="store.setSection('drive')" style="text-decoration:none">
+      <i class="fa-brands fa-google-drive" style="color:var(--success)"></i>
+      <span>Drive</span>
+    </a>
+
     <button type="button" class="ghost-button" (click)="store.refreshAll()">
       <i class="fa-solid fa-rotate-right"></i>
       <span>Refresh</span>
     </button>
   </div>
 </header>
+
+<!-- Page header — owned by the topbar so it is always visible above the routed content -->
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Self Improving System</p>
+    <h1>{{ store.currentSectionLabel() }}</h1>
+    <p class="page-description">{{ store.currentSectionDescription() }}</p>
+  </div>
+  <section class="header-stats" *ngIf="store.workspace() as workspace">
+    <article>
+      <span>Connected Agents</span>
+      <strong>{{ store.connectedAgentCount() }}</strong>
+    </article>
+    <article>
+      <span>Pending Memory</span>
+      <strong>{{ workspace.memory.reviewQueue.length }}</strong>
+    </article>
+    <article>
+      <span>Ready Videos</span>
+      <strong>{{ workspace.dashboard.readyVideos.length }}</strong>
+    </article>
+  </section>
+</section>

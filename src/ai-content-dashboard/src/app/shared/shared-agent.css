@@ -1,0 +1,218 @@
+/* ====================================================
+   SHARED AGENT WORKSPACE STYLES
+   Used by all dedicated agent components
+   ==================================================== */
+
+
+.agent-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.agent-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.agent-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-soft);
+  border-radius: 20px;
+  font-size: 1.5rem;
+  color: var(--primary);
+  border: 1px solid var(--border-soft);
+  transition: all 0.2s ease;
+}
+
+.agent-name-stack h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+
+.agent-status {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.status-dot.active {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.agent-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 32px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Detail Section (sidebar panels on agent pages) */
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.detail-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow-soft);
+}
+
+.detail-card h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-card h3 i {
+  color: var(--primary);
+}
+
+.capability-pill {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--surface-soft);
+  border-radius: 99px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted-strong);
+  margin: 0 8px 8px 0;
+}
+
+/* API config card inside detail sidebar */
+.api-config-card p.config-note {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+.field-error {
+  color: var(--danger, #f87171);
+  font-size: 0.8rem;
+  margin-top: 4px;
+  display: block;
+}
+
+input.invalid,
+select.invalid {
+  border-color: var(--danger, #f87171) !important;
+}
+
+.required {
+  color: var(--danger, #f87171);
+}
+
+/* Settings page layout */
+.settings-container {
+  /* Padding handled by routed-content */
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.settings-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: var(--shadow-soft);
+}
+
+.settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.settings-header h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+
+.settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--surface-soft);
+  border-radius: 16px;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1100px) {
+  .agent-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}

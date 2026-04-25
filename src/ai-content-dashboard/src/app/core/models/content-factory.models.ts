@@ -1,4 +1,4 @@
-export type TopSectionId = 'dashboard' | 'agents' | 'memory' | 'scheduler' | 'settings';
+export type TopSectionId = 'dashboard' | 'agents' | 'memory' | 'scheduler' | 'settings' | 'drive';
 export type ThemeMode = 'light' | 'dark';
 export type SideTabId = string;
 
@@ -169,6 +169,14 @@ export type MemorySuggestionDto = {
   createdAt: string;
 };
 
+export type DriveSettings = {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  rootFolderId: string;
+};
+
+
 export type ProviderOption = {
   category: string;
   providers: string[];
@@ -267,6 +275,7 @@ export type WorkspaceBootstrap = {
   memory: MemoryWorkspace;
   scheduler: SchedulerWorkspace;
   settings: SettingsWorkspace;
+  drive: DriveSettings;
   generatedAt: string;
 };
 
@@ -308,6 +317,7 @@ export const TOP_SECTION_ITEMS: TopSectionItem[] = [
   { id: 'agents', label: 'Agents', icon: 'fa-robot', description: 'Main Brain plus all creation and publishing agents' },
   { id: 'memory', label: 'Memory', icon: 'fa-brain', description: 'Global memory, local memory, and review workflow' },
   { id: 'scheduler', label: 'Scheduler', icon: 'fa-calendar-check', description: 'Manual and automated execution control' },
+  { id: 'drive', label: 'Drive', icon: 'fa-google-drive', description: 'Global Google Drive storage and configuration' },
   { id: 'settings', label: 'Settings', icon: 'fa-sliders', description: 'Per-agent API, model, and storage configuration' }
 ];
 
@@ -352,7 +362,11 @@ export const MENU_BY_SECTION: Record<TopSectionId, SideNavTemplate[]> = {
     { id: 'scheduler-retry', label: 'Retry Uploads', icon: 'fa-rotate-right', badge: 'retryScheduleCount' },
     { id: 'scheduler-queue', label: 'Queue Execution', icon: 'fa-list-check', badge: 'queueScheduleCount' }
   ],
-  settings: SETTINGS_NAV_ITEMS
+  settings: SETTINGS_NAV_ITEMS,
+  drive: [
+    { id: 'drive-explorer', label: 'Explorer', icon: 'fa-folder-open', badge: 'driveFiles' },
+    { id: 'drive-config', label: 'Configuration', icon: 'fa-gear', badge: 'driveStatus' }
+  ]
 };
 
 export const INITIAL_MANUAL_SCHEDULE: ManualScheduleDraft = {

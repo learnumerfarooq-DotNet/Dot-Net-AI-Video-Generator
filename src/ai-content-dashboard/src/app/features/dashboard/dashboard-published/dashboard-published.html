@@ -1,0 +1,31 @@
+<div class="panel" *ngIf="store.dashboard() as dashboard">
+  <div class="panel-header">
+    <h2>Published Content</h2>
+    <i class="fa-solid fa-earth-americas" style="color:var(--primary)"></i>
+  </div>
+
+  <div class="content-grid" *ngIf="dashboard.publishedWidgets.length; else noPub">
+    <article class="metric-card" *ngFor="let w of dashboard.publishedWidgets">
+      <span>{{ w.platform }}</span>
+      <strong>{{ w.publishedCount }}</strong>
+      <div class="item-meta">{{ w.totalViews | number }} views &bull; {{ w.scheduledCount }} scheduled</div>
+    </article>
+  </div>
+
+  <ng-template #noPub>
+    <div class="empty-state">
+      <i class="fa-solid fa-video-slash"></i>
+      <p>No published content yet.</p>
+    </div>
+  </ng-template>
+
+  <div class="list-stack" style="margin-top:24px" *ngIf="dashboard.recentlyPublished.length">
+    <div class="list-item" *ngFor="let video of dashboard.recentlyPublished">
+      <div class="item-info">
+        <div class="item-title">{{ video.title }}</div>
+        <div class="item-meta">{{ video.publishedAt | date:'MMM d, h:mm a' }} &bull; {{ video.platforms.join(', ') }}</div>
+      </div>
+      <span class="badge badge-primary">Live</span>
+    </div>
+  </div>
+</div>

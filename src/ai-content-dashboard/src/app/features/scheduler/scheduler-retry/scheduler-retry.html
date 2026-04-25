@@ -1,0 +1,21 @@
+<div class="page-content scheduler-container" *ngIf="store.scheduler() as scheduler">
+  <section class="panel">
+    <header class="panel-header">
+      <h2>Retry Mechanisms</h2>
+      <i class="fa-solid fa-rotate-left"></i>
+    </header>
+    <div class="jobs-list">
+      <article class="job-card" *ngFor="let job of scheduler.retryJobs">
+        <div class="job-info">
+          <div class="job-title">{{ job.name }}</div>
+          <div class="job-meta">{{ job.notes }}</div>
+        </div>
+        <span class="job-status status-pending">{{ job.status }}</span>
+      </article>
+      <div class="empty-state" *ngIf="!scheduler.retryJobs.length">
+        <i class="fa-solid fa-rotate-right"></i>
+        <p>No retry jobs pending.</p>
+      </div>
+    </div>
+  </section>
+</div>

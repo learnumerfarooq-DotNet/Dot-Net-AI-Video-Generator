@@ -1,0 +1,95 @@
+/* ====================================================
+   SHARED SCHEDULER STYLES
+   Used by manual, daily, retry, and queue components
+   ==================================================== */
+
+
+.scheduler-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 40px;
+}
+
+.scheduler-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 32px;
+}
+
+.jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.job-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.job-card:hover {
+  border-color: var(--primary-soft);
+  box-shadow: var(--shadow-soft);
+  background: var(--surface-strong);
+}
+
+.job-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.job-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.job-meta {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-status {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-active {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.status-disabled {
+  background: var(--surface-strong);
+  color: var(--muted-strong);
+}
+
+.status-failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+@media (max-width: 1100px) {
+  .scheduler-layout {
+    grid-template-columns: 1fr;
+  }
+}

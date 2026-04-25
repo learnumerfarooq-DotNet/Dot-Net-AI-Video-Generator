@@ -36,10 +36,17 @@ public sealed class OpenRouterChatProvider(HttpClient httpClient) : IChatProvide
         var response = await httpClient.SendAsync(req, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<OpenRouterResponse>(cancellationToken: cancellationToken);
+        var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
+        var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var result = System.Text.Json.JsonSerializer.Deserialize<OpenRouterResponse>(jsonString, options);
         sw.Stop();
 
-        var content = result?.Choices?.FirstOrDefault()?.Message?.Content ?? "No response content generated.";
+        var content = result?.Choices?.FirstOrDefault()?.Message?.Content;
+        if (string.IsNullOrEmpty(content))
+        {
+            content = "The model did not return a response. This may happen with free-tier models under heavy load — please try again.";
+        }
+        
         var tokensIn = result?.Usage?.PromptTokens ?? 0;
         var tokensOut = result?.Usage?.CompletionTokens ?? 0;
         

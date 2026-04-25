@@ -6,6 +6,7 @@ public sealed record WorkspaceBootstrapResponse(
     MemoryWorkspaceDto Memory,
     SchedulerWorkspaceDto Scheduler,
     SettingsWorkspaceDto Settings,
+    DriveSettingsDto Drive,
     DateTimeOffset GeneratedAt);
 
 public sealed record DashboardWorkspaceDto(
@@ -183,6 +184,19 @@ public sealed record ProviderOptionDto(
     string Category,
     IReadOnlyList<string> Providers);
 
+public sealed record DriveFileDto(
+    string Id,
+    string Name,
+    string Type,
+    string Size,
+    string Date);
+
+public sealed record DriveSettingsDto(
+    string ClientId,
+    string ClientSecret,
+    string RefreshToken,
+    string RootFolderId);
+
 public sealed record SendAgentMessageRequest(string Message);
 
 public sealed record ReviewMemoryRequest(string? RevisedTitle, string? RevisedContent);
@@ -213,3 +227,9 @@ public sealed record SaveAgentSettingsRequest(
     string StorageFolderName = "",
     string StorageFolderPath = "",
     string StorageFolderUrl = "");
+
+public sealed record SaveDriveSettingsRequest(
+    string ClientId,
+    string ClientSecret,
+    string RefreshToken,
+    string RootFolderId);

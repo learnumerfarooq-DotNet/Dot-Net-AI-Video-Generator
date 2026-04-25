@@ -117,5 +117,95 @@ app.MapGet("/api/memory/suggestions/pending", async (
     var suggestions = await facade.GetPendingMemorySuggestionsAsync(cancellationToken);
     return Results.Ok(suggestions);
 });
+app.MapDelete("/api/agents/{agentKey}/chat/cleanup", async (
+    string agentKey,
+    AiContentFactory.Infrastructure.Persistence.StudioDbContext db,
+    CancellationToken cancellationToken) =>
+{
+    var broken = db.ChatMessages
+        .Where(m => m.AgentKey == agentKey && (
+            m.Content.StartsWith("No response content generated") ||
+            m.Content.StartsWith("Main Brain response")));
+    db.ChatMessages.RemoveRange(broken);
+    var count = await db.SaveChangesAsync(cancellationToken);
+    return Results.Ok(new { deleted = count, agentKey });
+});
+
+// Google Drive OAuth token exchange
+app.MapPost("/api/drive/oauth/exchange", async (DriveOAuthExchangeRequest request, IConfiguration config) =>
+{
+    using var httpClient = new HttpClient();
+
+    var tokenRequestBody = new FormUrlEncodedContent(new Dictionary<string, string>
+    {
+        ["code"] = request.Code,
+        ["client_id"] = "",
+        ["client_secret"] = "",
+        ["redirect_uri"] = request.RedirectUri,
+        ["grant_type"] = "authorization_code"
+    });
+
+    var response = await httpClient.PostAsync("https://oauth2.googleapis.com/token", tokenRequestBody);
+    var responseBody = await response.Content.ReadAsStringAsync();
+
+    if (!response.IsSuccessStatusCode)
+    {
+        return Results.Problem(
+            detail: responseBody,
+            statusCode: (int)response.StatusCode,
+            title: "Google OAuth token exchange failed");
+    }
+
+    var tokenDoc = System.Text.Json.JsonDocument.Parse(responseBody);
+    var root = tokenDoc.RootElement;
+
+    var accessToken = root.GetProperty("access_token").GetString() ?? "";
+    var expiresIn = root.TryGetProperty("expires_in", out var exp) ? exp.GetInt32() : 3600;
+    var refreshToken = root.TryGetProperty("refresh_token", out var rt) ? rt.GetString() ?? "" : "";
+
+    return Results.Ok(new
+    {
+        accessToken,
+        refreshToken,
+        expiresIn
+    });
+});
+
+app.MapGet("/api/drive/config", async (
+    IStudioWorkspaceFacade facade,
+    CancellationToken cancellationToken) =>
+{
+    // ...
+    return Results.Ok(); // Placeholder if needed, but bootstrap is better
+});
+
+app.MapGet("/api/drive/files", async (
+    IStudioWorkspaceFacade facade,
+    CancellationToken cancellationToken) =>
+{
+    var files = await facade.ListDriveFilesAsync(cancellationToken);
+    return Results.Ok(files);
+});
+
+app.MapPost("/api/drive/folders", async (
+    CreateFolderRequest request,
+    IStudioWorkspaceFacade facade,
+    CancellationToken cancellationToken) =>
+{
+    var folder = await facade.CreateDriveFolderAsync(request.Name, cancellationToken);
+    return folder is null ? Results.Problem("Failed to create folder") : Results.Ok(folder);
+});
+
+app.MapPut("/api/drive/config", async (
+    SaveDriveSettingsRequest request,
+    IStudioWorkspaceFacade facade,
+    CancellationToken cancellationToken) =>
+{
+    var settings = await facade.SaveDriveSettingsAsync(request, cancellationToken);
+    return Results.Ok(settings);
+});
 
 app.Run();
+
+public record DriveOAuthExchangeRequest(string Code, string RedirectUri);
+public record CreateFolderRequest(string Name);

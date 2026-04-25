@@ -1,36 +1,14 @@
-<main class="app-shell" [class.dark-theme]="store.theme() === 'dark'" [class.sidebar-collapsed]="store.sidebarCollapsed()">
-  <app-sidebar [collapsed]="store.sidebarCollapsed()"></app-sidebar>
+<main class="app-shell"
+      [class.dark-theme]="store.theme() === 'dark'"
+      [class.sidebar-collapsed]="store.sidebarCollapsed()">
+
+  <app-sidebar></app-sidebar>
 
   <section class="main-area">
     <app-topbar></app-topbar>
-
-    <section class="page-header">
-      <div>
-        <p class="eyebrow">Self Improving System</p>
-        <h1>{{ store.currentSectionLabel() }}</h1>
-        <p class="page-description">{{ store.currentSectionDescription() }}</p>
-      </div>
-
-      <section class="header-stats" *ngIf="store.workspace() as workspace">
-        <article>
-          <span>Connected Agents</span>
-          <strong>{{ store.connectedAgentCount() }}</strong>
-        </article>
-        <article>
-          <span>Pending Memory</span>
-          <strong>{{ workspace.memory.reviewQueue.length }}</strong>
-        </article>
-        <article>
-          <span>Ready Videos</span>
-          <strong>{{ workspace.dashboard.readyVideos.length }}</strong>
-        </article>
-      </section>
-    </section>
-
-    <app-dashboard-page *ngIf="store.activeSection() === 'dashboard'"></app-dashboard-page>
-    <app-agents-page *ngIf="store.activeSection() === 'agents'"></app-agents-page>
-    <app-memory-page *ngIf="store.activeSection() === 'memory'"></app-memory-page>
-    <app-scheduler-page *ngIf="store.activeSection() === 'scheduler'"></app-scheduler-page>
-    <app-settings-page *ngIf="store.activeSection() === 'settings'"></app-settings-page>
+    <div class="routed-content">
+      <router-outlet></router-outlet>
+    </div>
   </section>
+
 </main>

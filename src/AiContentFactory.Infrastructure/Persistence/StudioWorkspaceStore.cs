@@ -5,7 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AiContentFactory.Infrastructure.Persistence;
 
-public sealed class StudioWorkspaceStore(StudioDbContext dbContext, IMemoryRepository memoryRepository) : IStudioWorkspaceStore
+public sealed class StudioWorkspaceStore(
+    StudioDbContext dbContext, 
+    IMemoryRepository memoryRepository,
+    IJsonFileStore jsonStore) : IStudioWorkspaceStore
 {
     private static readonly string[] Palette =
     [
@@ -77,6 +80,8 @@ public sealed class StudioWorkspaceStore(StudioDbContext dbContext, IMemoryRepos
         var backlogVideos = videos.Where(video => video.Stage == "Backlog").Select(ToVideoDto).ToArray();
         var publishedVideos = videos.Where(video => video.Stage == "Published").Select(ToVideoDto).ToArray();
 
+        var driveSettings = await GetDriveSettingsAsync(cancellationToken);
+
         return new WorkspaceBootstrapResponse(
             new DashboardWorkspaceDto(
                 BuildUsageSeries(agents, usages),
@@ -108,6 +113,7 @@ public sealed class StudioWorkspaceStore(StudioDbContext dbContext, IMemoryRepos
             new SettingsWorkspaceDto(
                 agents.Select(ToSettingsDto).ToArray(),
                 BuildProviderOptions()),
+            driveSettings,
             DateTimeOffset.UtcNow);
     }
 
@@ -356,6 +362,16 @@ public sealed class StudioWorkspaceStore(StudioDbContext dbContext, IMemoryRepos
         var agent = await dbContext.Agents.FirstOrDefaultAsync(item => item.Key == agentKey, cancellationToken);
         return agent is null ? null : ToSettingsDto(agent);
     }
+
+    public async Task<DriveSettingsDto> SaveDriveSettingsAsync(SaveDriveSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var settings = new DriveSettingsDto(request.ClientId, request.ClientSecret, request.RefreshToken, request.RootFolderId);
+        await jsonStore.WriteAsync("drive.config.json", settings, cancellationToken);
+        return settings;
+    }
+
+    public Task<DriveSettingsDto> GetDriveSettingsAsync(CancellationToken cancellationToken)
+        => jsonStore.ReadAsync("drive.config.json", new DriveSettingsDto("", "", "", ""), cancellationToken);
 
     private static bool DetermineConnection(StudioAgentEntity agent)
     {

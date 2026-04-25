@@ -1,0 +1,86 @@
+<div class="page-content scheduler-container" *ngIf="store.scheduler() as scheduler">
+  <div class="scheduler-layout">
+    <!-- Create Form -->
+    <form class="panel" [formGroup]="scheduleForm" (ngSubmit)="submit()">
+      <header class="panel-header">
+        <h2>Create New Schedule</h2>
+        <i class="fa-solid fa-calendar-plus"></i>
+      </header>
+
+      <div class="form-group">
+        <label class="field">
+          <span>Schedule Name <span class="required">*</span></span>
+          <input formControlName="name" placeholder="e.g. Weekly Review"
+                 [class.invalid]="scheduleForm.get('name')?.invalid && scheduleForm.get('name')?.touched" />
+          <span class="field-error" *ngIf="scheduleForm.get('name')?.invalid && scheduleForm.get('name')?.touched">Name is required</span>
+        </label>
+
+        <label class="field">
+          <span>Target Agent <span class="required">*</span></span>
+          <select formControlName="agentKey">
+            <option value="main-brain">Main Brain</option>
+            <option value="trend-agent">Trend Agent</option>
+            <option value="script-agent">Script Agent</option>
+            <option value="video-generation-agent">Video Generator</option>
+            <option value="shorts-agent-1">Shorts Agent 1</option>
+            <option value="shorts-agent-2">Shorts Agent 2</option>
+            <option value="youtube-agent">YouTube Agent</option>
+            <option value="tiktok-agent">TikTok Agent</option>
+            <option value="instagram-agent">Instagram Agent</option>
+            <option value="facebook-agent">Facebook Agent</option>
+            <option value="linkedin-agent">LinkedIn Agent</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Trigger Expression (CRON or Interval) <span class="required">*</span></span>
+          <input formControlName="trigger" placeholder="0 0 * * *"
+                 [class.invalid]="scheduleForm.get('trigger')?.invalid && scheduleForm.get('trigger')?.touched" />
+          <span class="field-error" *ngIf="scheduleForm.get('trigger')?.invalid && scheduleForm.get('trigger')?.touched">Trigger is required</span>
+        </label>
+
+        <label class="field">
+          <span>Operational Notes</span>
+          <textarea rows="4" formControlName="notes" placeholder="Additional execution parameters..."></textarea>
+        </label>
+
+        <label class="checkbox-field">
+          <input type="checkbox" formControlName="isEnabled" />
+          <div class="item-info">
+            <div class="item-title">Enable Immediately</div>
+            <div class="item-meta">Schedule will run at its next trigger time</div>
+          </div>
+        </label>
+      </div>
+
+      <button type="submit" class="primary-button" [disabled]="!scheduleForm.valid || store.creatingManualSchedule()">
+        <i class="fa-solid" [class.fa-plus]="!store.creatingManualSchedule()"
+           [class.fa-spinner]="store.creatingManualSchedule()"
+           [class.fa-spin]="store.creatingManualSchedule()"></i>
+        {{ store.creatingManualSchedule() ? 'Creating...' : 'Register Job' }}
+      </button>
+    </form>
+
+    <!-- Active Jobs -->
+    <section class="panel">
+      <header class="panel-header">
+        <h2>Active Manual Jobs</h2>
+        <i class="fa-solid fa-list-check"></i>
+      </header>
+      <div class="jobs-list">
+        <article class="job-card" *ngFor="let job of scheduler.manualSchedules">
+          <div class="job-info">
+            <div class="job-title">{{ job.name }}</div>
+            <div class="job-meta">
+              <span class="job-status" [class.status-active]="job.isEnabled" [class.status-disabled]="!job.isEnabled">
+                {{ job.status }}
+              </span>
+              {{ job.agentKey }} &bull; {{ job.trigger }}
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right" style="opacity:0.5"></i>
+        </article>
+      </div>
+    </section>
+  </div>
+</div>

@@ -17,6 +17,12 @@ public interface IStudioWorkspaceFacade
     Task<AgentSettingsDto?> SaveAgentSettingsAsync(string agentKey, SaveAgentSettingsRequest request, CancellationToken cancellationToken);
     
     Task<IReadOnlyList<MemorySuggestionDto>> GetPendingMemorySuggestionsAsync(CancellationToken cancellationToken);
+
+    Task<DriveSettingsDto> SaveDriveSettingsAsync(SaveDriveSettingsRequest request, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<DriveFileDto>> ListDriveFilesAsync(CancellationToken cancellationToken);
+
+    Task<DriveFileDto?> CreateDriveFolderAsync(string folderName, CancellationToken cancellationToken);
 }
 
 public interface IStudioWorkspaceStore
@@ -49,4 +55,8 @@ public interface IStudioWorkspaceStore
     Task<AgentSettingsDto?> GetAgentSettingsAsync(string agentKey, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<MemorySuggestionDto>> GetPendingMemorySuggestionsAsync(CancellationToken cancellationToken);
+
+    Task<DriveSettingsDto> SaveDriveSettingsAsync(SaveDriveSettingsRequest request, CancellationToken cancellationToken);
+
+    Task<DriveSettingsDto> GetDriveSettingsAsync(CancellationToken cancellationToken);
 }

@@ -5,8 +5,21 @@ namespace AiContentFactory.Application.Studio;
 
 public sealed class StudioWorkspaceFacade(
     IStudioWorkspaceStore store,
+    IGoogleDriveService driveService,
     IEnumerable<IChatProvider> chatProviders) : IStudioWorkspaceFacade
 {
+    public async Task<IReadOnlyList<DriveFileDto>> ListDriveFilesAsync(CancellationToken cancellationToken)
+    {
+        var settings = await store.GetDriveSettingsAsync(cancellationToken);
+        return await driveService.ListFilesAsync(settings, cancellationToken);
+    }
+
+    public async Task<DriveFileDto?> CreateDriveFolderAsync(string folderName, CancellationToken cancellationToken)
+    {
+        var settings = await store.GetDriveSettingsAsync(cancellationToken);
+        return await driveService.CreateFolderAsync(settings, folderName, cancellationToken);
+    }
+
     public Task<WorkspaceBootstrapResponse> GetBootstrapAsync(CancellationToken cancellationToken)
         => store.GetBootstrapAsync(cancellationToken);
 
@@ -29,14 +42,24 @@ public sealed class StudioWorkspaceFacade(
         var settings = await store.GetAgentSettingsAsync(agentKey, cancellationToken);
         
         var assistantReply = string.Empty;
-        var provider = chatProviders.FirstOrDefault(p => string.Equals(p.ProviderName, context.Agent.ProviderName, StringComparison.OrdinalIgnoreCase));
+        var effectiveProviderName = settings?.UseOpenRouter == true ? "OpenRouter" : context.Agent.ProviderName;
+        var provider = chatProviders.FirstOrDefault(p => string.Equals(p.ProviderName, effectiveProviderName, StringComparison.OrdinalIgnoreCase));
 
         if (provider != null && context.Agent.IsConnected && settings != null)
         {
             try
             {
                 var systemPrompt = BuildSystemPrompt(context);
-                var history = context.Messages.Select(m => new ChatMessageInput(m.Role, m.Content)).ToList();
+                
+                // Build history from past messages, filtering out broken/debug responses
+                var history = context.Messages
+                    .Where(m => !string.IsNullOrWhiteSpace(m.Content) 
+                             && !m.Content.StartsWith("No response content generated"))
+                    .Select(m => new ChatMessageInput(m.Role, m.Content))
+                    .ToList();
+                
+                // CRITICAL: Append the current user message — it hasn't been saved to DB yet
+                history.Add(new ChatMessageInput("user", request.Message));
                 
                 var apiKey = settings.UseOpenRouter && !string.IsNullOrWhiteSpace(settings.OpenRouterApiKey)
                     ? settings.OpenRouterApiKey 
@@ -91,6 +114,9 @@ public sealed class StudioWorkspaceFacade(
 
     public Task<IReadOnlyList<MemorySuggestionDto>> GetPendingMemorySuggestionsAsync(CancellationToken cancellationToken)
         => store.GetPendingMemorySuggestionsAsync(cancellationToken);
+
+    public Task<DriveSettingsDto> SaveDriveSettingsAsync(SaveDriveSettingsRequest request, CancellationToken cancellationToken)
+        => store.SaveDriveSettingsAsync(request, cancellationToken);
 
     private static string BuildAgentReply(string userMessage, AgentConversationContextDto context)
     {
@@ -169,28 +195,35 @@ public sealed class StudioWorkspaceFacade(
     private static string BuildSystemPrompt(AgentConversationContextDto context)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"You are an expert AI agent named '{context.Agent.Name}' with the following capabilities: {context.Agent.CapabilitySummary}.");
-        builder.AppendLine("You are part of an advanced AI multi-agent Video Factory that operates using a 'Self-Improving Loop' (Create -> Execute -> Upload -> Analyze -> Improve).");
+        builder.AppendLine($"You are '{context.Agent.Name}', an intelligent AI assistant.");
+        builder.AppendLine($"Your specialty: {context.Agent.CapabilitySummary}.");
+        builder.AppendLine();
+        builder.AppendLine("You are part of a multi-agent AI Video Content Factory. Your role is to help the user with anything they ask — whether it's casual conversation, technical questions, content strategy, or workflow decisions.");
+        builder.AppendLine();
+        builder.AppendLine("Guidelines:");
+        builder.AppendLine("- Be natural, friendly, and conversational. Match the user's tone.");
+        builder.AppendLine("- If the user asks a general question (e.g. 'hi', 'how are you', 'what's your name'), respond naturally like a helpful assistant. Do NOT force workflow updates into casual replies.");
+        builder.AppendLine("- If the user asks about the workspace, videos, agents, or content pipeline, then reference the workspace context below.");
+        builder.AppendLine("- Use markdown formatting when giving detailed or technical responses.");
         builder.AppendLine();
         
-        var globalHints = context.GlobalMemories.Select(memory => memory.Title).ToArray();
-        var localHints = context.LocalMemories.Select(memory => memory.Title).ToArray();
+        // Workspace context (only included as reference, not forced into every reply)
+        builder.AppendLine("=== Workspace Context (reference only, use when relevant) ===");
+        builder.AppendLine($"Ready videos: {context.ReadyVideos.Count}, Backlog videos: {context.BacklogVideos.Count}");
+        
+        var globalHints = context.GlobalMemories.Select(memory => memory.Title).Take(3).ToArray();
+        var localHints = context.LocalMemories.Select(memory => memory.Title).Take(3).ToArray();
 
         if (globalHints.Length > 0)
         {
-            builder.AppendLine("=== Global Architecture Memory ===");
-            foreach(var hint in globalHints) builder.AppendLine($"- {hint}");
-            builder.AppendLine();
+            builder.AppendLine($"Global memory: {string.Join("; ", globalHints)}");
         }
 
         if (localHints.Length > 0)
         {
-            builder.AppendLine("=== Local Agent Memory ===");
-            foreach(var hint in localHints) builder.AppendLine($"- {hint}");
-            builder.AppendLine();
+            builder.AppendLine($"Local memory: {string.Join("; ", localHints)}");
         }
 
-        builder.AppendLine("Please read the user's focus request and provide a concise, highly technical action plan. Output in clear markdown.");
         return builder.ToString();
     }
 }

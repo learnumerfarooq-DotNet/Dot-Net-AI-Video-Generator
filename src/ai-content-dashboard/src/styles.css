@@ -1,7 +1,20 @@
+@import './app/shared/shared-agent.css';
+@import './app/shared/shared-dashboard.css';
+@import './app/shared/shared-memory.css';
+@import './app/shared/shared-scheduler.css';
+
 html,
 body {
   margin: 0;
   min-height: 100%;
+}
+
+.routed-content > :not(router-outlet) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 button,
