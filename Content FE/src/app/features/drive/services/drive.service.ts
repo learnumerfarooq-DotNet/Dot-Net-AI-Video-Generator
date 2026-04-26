@@ -18,6 +18,12 @@ export interface OAuthExchangeResult {
   expiresIn:    number;
 }
 
+export interface ConnectionTestResult {
+  success: boolean;
+  message: string;
+  details?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DriveService {
   private readonly api = inject(ApiService);
@@ -40,5 +46,10 @@ export class DriveService {
   /** Persists the global Drive credentials and root folder ID. */
   saveConfig(config: Partial<DriveSettings>): Observable<DriveSettings> {
     return this.api.put<DriveSettings>(ENDPOINTS.DRIVE, 'config', config);
+  }
+
+  /** Verifies the saved Drive credentials by making a live backend check. */
+  testConnection(): Observable<ConnectionTestResult> {
+    return this.api.postAction<ConnectionTestResult>(ENDPOINTS.DRIVE, 'connection/test', {});
   }
 }

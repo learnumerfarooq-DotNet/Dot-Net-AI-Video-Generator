@@ -1,12 +1,14 @@
 import { computed, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { DriveService } from '../services/drive.service';
+import { ConnectionTestResult, DriveService } from '../services/drive.service';
 import { DriveSettings, WorkspaceBootstrap } from '../../../core/models/content-factory.models';
 
 type DriveState = {
   driveConfig: DriveSettings | null;
   driveFiles: any[];
+  driveConnection: ConnectionTestResult | null;
+  testingDriveConnection: boolean;
   loadingDrive: boolean;
   status: string;
 };
@@ -14,6 +16,8 @@ type DriveState = {
 const initialState: DriveState = {
   driveConfig: null,
   driveFiles: [],
+  driveConnection: null,
+  testingDriveConnection: false,
   loadingDrive: false,
   status: 'Ready'
 };
@@ -23,6 +27,7 @@ export const DriveStore = signalStore(
   withState(initialState),
   withComputed((store) => ({
     isDriveConfigured: computed(() => !!(store.driveConfig()?.clientId && store.driveConfig()?.refreshToken)),
+    isDriveConnected:  computed(() => store.driveConnection()?.success === true),
     driveFileCount:    computed(() => store.driveFiles().length)
   })),
   withMethods((store, driveSvc = inject(DriveService)) => ({
@@ -35,6 +40,7 @@ export const DriveStore = signalStore(
       try {
         const saved = await firstValueFrom(driveSvc.saveConfig(config));
         patchState(store, { driveConfig: saved, loadingDrive: false, status: 'Drive configuration saved.' });
+        await this.testDriveConnection();
         await this.loadDriveFiles();
       } catch (error) {
         patchState(store, { loadingDrive: false, status: `Drive config failed: ${readError(error)}` });
@@ -72,6 +78,24 @@ export const DriveStore = signalStore(
       } catch (error) {
         patchState(store, { status: `OAuth exchange failed: ${readError(error)}` });
         return null;
+      }
+    },
+
+    async testDriveConnection() {
+      patchState(store, { testingDriveConnection: true, driveConnection: null, status: 'Testing Drive connection...' });
+      try {
+        const result = await firstValueFrom(driveSvc.testConnection());
+        patchState(store, {
+          testingDriveConnection: false,
+          driveConnection: result,
+          status: result.success ? 'Drive connection OK.' : result.message || 'Drive connection failed.'
+        });
+      } catch (error) {
+        patchState(store, {
+          testingDriveConnection: false,
+          driveConnection: { success: false, message: 'Drive connection test failed.', details: readError(error) },
+          status: `Drive test error: ${readError(error)}`
+        });
       }
     }
   }))

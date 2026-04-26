@@ -25,10 +25,20 @@
           <p>Authorize with your Google account to automatically generate the refresh token. This is the easiest way to connect.</p>
         </div>
       </div>
-      @if (config.refreshToken) {
+      @if (driveStore.testingDriveConnection()) {
+        <div class="oauth-connected pending">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+          <span>Checking connection...</span>
+        </div>
+      } @else if (driveStore.isDriveConnected()) {
         <div class="oauth-connected">
           <i class="fa-solid fa-check-circle"></i>
-          <span>Connected — Refresh token is set</span>
+          <span>Connected — Google Drive verified</span>
+        </div>
+      } @else if (config.refreshToken) {
+        <div class="oauth-connected failed">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>Not connected — token exists but verification failed</span>
         </div>
       } @else {
         <button class="google-button" (click)="startOAuth()">

@@ -16,6 +16,7 @@ export class DriveConfigComponent {
   protected readonly store = inject(ContentFactoryStore);
   protected readonly driveStore = inject(DriveStore);
   private readonly router = inject(Router);
+  private lastValidatedConfigKey = '';
 
   config = {
     clientId: '',
@@ -35,6 +36,12 @@ export class DriveConfigComponent {
           refreshToken: saved.refreshToken || '',
           rootFolderId: saved.rootFolderId || ''
         };
+
+        const key = `${saved.clientId}|${saved.refreshToken}|${saved.rootFolderId}`;
+        if (saved.clientId?.trim() && saved.refreshToken?.trim() && key !== this.lastValidatedConfigKey) {
+          this.lastValidatedConfigKey = key;
+          void this.driveStore.testDriveConnection();
+        }
       }
     });
   }
@@ -70,8 +77,8 @@ export class DriveConfigComponent {
     });
   }
 
-  saveConfig() {
-    this.driveStore.saveDriveConfig(this.config);
+  async saveConfig() {
+    await this.driveStore.saveDriveConfig(this.config);
     this.router.navigate(['/drive/explorer']);
     this.store.setSideTab('drive-explorer');
   }

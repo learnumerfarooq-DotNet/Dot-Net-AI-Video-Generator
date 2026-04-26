@@ -112,6 +112,14 @@
   font-size: 1.1rem;
 }
 
+.oauth-connected.pending {
+  color: var(--text-muted);
+}
+
+.oauth-connected.failed {
+  color: #f2994a;
+}
+
 /* Divider */
 .divider {
   display: flex;
