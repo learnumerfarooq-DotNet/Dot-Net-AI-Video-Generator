@@ -1,0 +1,27 @@
+[
+  {
+    "id": "322ac31f-a9e4-43ba-a1a6-a50ce1fafa67",
+    "topic": "AI tools for small business",
+    "platform": "youtube",
+    "format": "short",
+    "status": 0,
+    "artifacts": [
+      {
+        "id": "4bb331df-1c98-449d-9723-156adf060bc4",
+        "kind": "script",
+        "title": "AI tools for small business - short script",
+        "body": "Hook:\nWhat if AI tools for small business is the shift everyone notices too late?\n\nAudience:\nsmall business owners\n\nGoal:\nexplain a practical automation idea\n\nScript:\n1. Open with the problem behind \u0022AI tools for small business\u0022 in one punchy sentence.\n2. Explain why it is trending now and what changed recently.\n3. Give three concrete points with examples.\n4. Close with a clear takeaway and a platform-native call to action for youtube.\n\nProduction Notes:\nFormat this as short. Keep pacing fast, sentences short, and each visual beat easy to turn into a shot.",
+        "createdAt": "2026-04-25T05:51:46.3415906+00:00"
+      },
+      {
+        "id": "60721694-2b8b-4067-8dce-0973fad9d259",
+        "kind": "upload-plan",
+        "title": "youtube upload checklist",
+        "body": "Prepare title, description, tags, thumbnail, and scheduled upload window for \u0027AI tools for small business\u0027.",
+        "createdAt": "2026-04-25T05:51:46.3597595+00:00"
+      }
+    ],
+    "createdAt": "2026-04-25T05:51:46.3605295+00:00",
+    "updatedAt": "2026-04-25T05:51:46.3605295+00:00"
+  }
+]

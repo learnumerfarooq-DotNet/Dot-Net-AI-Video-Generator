@@ -1,0 +1,70 @@
+<div class="agent-workspace" *ngIf="agentsStore.activeAgent() as agent">
+  <header class="agent-header">
+    <div class="agent-info">
+      <div class="agent-icon" style="color:#e1306c; border-color:rgba(225,48,108,0.25)">
+        <i class="fa-brands fa-instagram"></i>
+      </div>
+      <div class="agent-name-stack">
+        <h2>{{ agent.name }}</h2>
+        <div class="agent-status">
+          <span class="status-dot" [class.active]="agent.isConnected"></span>
+          {{ agent.isConnected ? 'Connected' : 'Disconnected' }} &bull; Publishing Agent
+        </div>
+      </div>
+    </div>
+    <button type="button" class="ghost-button" [routerLink]="'/settings/instagram-agent'">
+      <i class="fa-solid fa-sliders"></i>
+      <span>AI Settings</span>
+    </button>
+  </header>
+
+  <div class="agent-layout">
+    <app-agent-chat [agent]="agent"></app-agent-chat>
+
+    <aside class="detail-section">
+      <section class="detail-card">
+        <h3><i class="fa-brands fa-instagram"></i> Instagram Integration</h3>
+        <p style="font-size:0.875rem; color:var(--muted); line-height:1.6; margin:0 0 16px">
+          Ask this agent to walk you through connecting your Instagram account. The agent will guide you through OAuth setup and channel configuration via chat.
+        </p>
+        
+        <div class="capability-pill">Post Reels</div>
+        <div class="capability-pill">Stories</div>
+        <div class="capability-pill">Carousels</div>
+        <div class="capability-pill">Hashtags</div>
+      </section>
+
+      <section class="detail-card">
+        <h3><i class="fa-solid fa-lightbulb"></i> Try Asking</h3>
+        <div class="list-stack">
+                    <div class="list-item">
+            <div class="item-info">
+              <div class="item-meta">"Post a Reel from Drive"</div>
+            </div>
+          </div>          <div class="list-item">
+            <div class="item-info">
+              <div class="item-meta">"Schedule a Story"</div>
+            </div>
+          </div>          <div class="list-item">
+            <div class="item-info">
+              <div class="item-meta">"Connect Instagram account"</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="detail-card">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Runs</h3>
+        <div class="list-stack">
+          <div class="list-item" *ngFor="let run of agent.recentRuns">
+            <div class="item-info">
+              <div class="item-title">{{ run.title }}</div>
+              <div class="item-meta">{{ run.status }}</div>
+            </div>
+            <span class="item-meta">{{ run.queuedAt | date:'h:mm a' }}</span>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

@@ -1,0 +1,28 @@
+<section class="usage-grid" *ngIf="dashboardStore.dashboard() as dashboard">
+  <section class="panel" *ngFor="let series of dashboard.usageSeries">
+    <div class="panel-header">
+      <div class="item-info">
+        <h2>{{ series.agentName }}</h2>
+        <div class="item-meta">{{ series.agentKey }}</div>
+      </div>
+      <i class="fa-solid fa-chart-simple" [style.color]="series.accentColor"></i>
+    </div>
+
+    <div class="mini-chart">
+      <div class="bar-container" *ngFor="let point of series.points">
+        <div class="bar" [style.height.%]="usageHeight(point, series)" [style.background]="series.accentColor"></div>
+        <span class="item-meta" style="font-size:10px">{{ point.capturedAt | date:'EEE' }}</span>
+      </div>
+    </div>
+
+    <div class="list-stack">
+      <div class="list-item" *ngIf="latestPoint(series) as latest">
+        <div class="item-info">
+          <div class="item-title">${{ latest.costUsd }} Cost</div>
+          <div class="item-meta">{{ latest.tokensIn + latest.tokensOut | number }} tokens consumed</div>
+        </div>
+        <span class="badge badge-primary">{{ latest.requestCount }} reqs</span>
+      </div>
+    </div>
+  </section>
+</section>

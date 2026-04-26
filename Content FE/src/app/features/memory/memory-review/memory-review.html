@@ -1,0 +1,45 @@
+<div class="page-content">
+  <section class="panel">
+    <header class="panel-header">
+      <h2>Memory Approval Queue</h2>
+      <i class="fa-solid fa-user-shield"></i>
+    </header>
+
+    <div class="approval-grid" *ngIf="memoryStore.reviewQueue().length; else emptyReview">
+      <article class="approval-card" *ngFor="let item of memoryStore.reviewQueue()">
+        <ng-container [formGroup]="getForm(item)">
+          <label class="field">
+            <span>Memory Title</span>
+            <input formControlName="title" />
+          </label>
+
+          <label class="field" style="margin-top:16px">
+            <span>Inferred Knowledge</span>
+            <textarea rows="5" formControlName="content"></textarea>
+          </label>
+        </ng-container>
+
+        <div class="item-meta" style="margin-top:12px">
+          {{ item.agentKey || 'Global' }} &bull; {{ item.tags.join(', ') }} &bull; {{ item.createdAt | date:'MMM d' }}
+        </div>
+
+        <div class="button-group" style="margin-top:16px">
+          <button type="button" class="primary-button" (click)="approve(item)"
+                  [disabled]="!getForm(item).valid">
+            <i class="fa-solid fa-check"></i> Approve
+          </button>
+          <button type="button" class="danger-button" (click)="reject(item)">
+            <i class="fa-solid fa-trash"></i> Reject
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <ng-template #emptyReview>
+      <div class="empty-state">
+        <i class="fa-solid fa-clipboard-check"></i>
+        <p>No memories waiting for review.</p>
+      </div>
+    </ng-template>
+  </section>
+</div>

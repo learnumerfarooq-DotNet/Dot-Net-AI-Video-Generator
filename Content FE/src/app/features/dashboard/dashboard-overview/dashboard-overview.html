@@ -1,0 +1,96 @@
+<section class="metric-grid" *ngIf="dashboardStore.dashboard() as dashboard">
+  <article class="metric-card">
+    <span>API Series</span>
+    <strong>{{ dashboard.usageSeries.length }}</strong>
+  </article>
+  <article class="metric-card">
+    <span>Global Memory</span>
+    <strong>{{ dashboard.memoryCounts.globalApproved }}</strong>
+  </article>
+  <article class="metric-card">
+    <span>Ready To Upload</span>
+    <strong>{{ dashboard.readyVideos.length }}</strong>
+  </article>
+  <article class="metric-card">
+    <span>Recently Published</span>
+    <strong>{{ dashboard.recentlyPublished.length }}</strong>
+  </article>
+
+  <section class="content-grid span-all">
+    <!-- Pipeline Snapshot -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Pipeline Snapshot</h2>
+        <i class="fa-solid fa-arrows-spin fa-spin-slow"></i>
+      </div>
+
+      <div class="pipeline-widget">
+        <div class="pipeline-step active">
+          <i class="fa-solid fa-lightbulb"></i>
+          <span>Create</span>
+        </div>
+        <div class="pipeline-connector active"></div>
+        <div class="pipeline-step active">
+          <i class="fa-solid fa-gears"></i>
+          <span>Execute</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Upload</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Analyze</span>
+        </div>
+        <div class="pipeline-connector"></div>
+        <div class="pipeline-step highlight">
+          <i class="fa-solid fa-brain"></i>
+          <span>Improve</span>
+        </div>
+      </div>
+
+      <div class="list-stack">
+        <div class="list-item">
+          <div class="item-info">
+            <div class="item-title">Backlog waiting</div>
+            <div class="item-meta">{{ dashboard.backlogVideos.length }} videos in Google Drive backlog</div>
+          </div>
+          <span class="badge badge-primary">Backlog</span>
+        </div>
+        <div class="list-item">
+          <div class="item-info">
+            <div class="item-title">Ready to upload</div>
+            <div class="item-meta">{{ dashboard.readyVideos.length }} videos prepared for agents</div>
+          </div>
+          <span class="badge badge-success">Ready</span>
+        </div>
+        <div class="list-item">
+          <div class="item-info">
+            <div class="item-title">Memory review</div>
+            <div class="item-meta">{{ dashboard.memoryCounts.pendingReview }} new learnings waiting</div>
+          </div>
+          <span class="badge">Pending</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Agent Runs -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Recent Agent Runs</h2>
+        <i class="fa-solid fa-bolt" style="color:var(--primary)"></i>
+      </div>
+      <div class="list-stack">
+        <div class="list-item" *ngFor="let run of dashboard.recentRuns">
+          <div class="item-info">
+            <div class="item-title">{{ run.title }}</div>
+            <div class="item-meta">{{ run.agentKey }} &bull; {{ run.status }}</div>
+          </div>
+          <span class="item-meta">{{ run.queuedAt | date:'h:mm a' }}</span>
+        </div>
+      </div>
+    </section>
+  </section>
+</section>

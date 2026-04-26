@@ -1,0 +1,110 @@
+<div class="settings-container" *ngIf="activeAgentSettings as settings; else noAgent">
+  <div class="settings-grid" [formGroup]="agentForm">
+
+    <!-- Card 1: Model & Provider -->
+    <section class="settings-card">
+      <header class="settings-header">
+        <div class="item-info">
+          <h2>{{ settings.agentName }} — Agent Configuration</h2>
+          <div class="item-meta">{{ settings.category }} Agent</div>
+        </div>
+        <i class="fa-solid fa-gears" style="font-size:1.5rem; color:var(--primary)"></i>
+      </header>
+
+      <div class="form-group">
+        <label class="field">
+          <span>AI Provider</span>
+          <select formControlName="providerName">
+            <option *ngFor="let opt of providerOptions" [value]="opt">{{ opt }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Model Name</span>
+          <input formControlName="modelName" placeholder="e.g. gpt-4-turbo" />
+        </label>
+
+        <label class="field">
+          <span>Base URL</span>
+          <input formControlName="baseUrl" placeholder="https://api.openai.com/v1" />
+        </label>
+
+        <label class="field">
+          <span>API Key</span>
+          <input type="password" formControlName="apiKey" placeholder="sk-..." />
+        </label>
+      </div>
+    </section>
+
+    <!-- Card 2: Extended Options -->
+    <section class="settings-card" *ngIf="settings.supportsOpenRouter">
+      <header class="settings-header">
+        <div class="item-info">
+          <h2>Extended Options</h2>
+          <div class="item-meta">Advanced agent behavior</div>
+        </div>
+        <i class="fa-solid fa-sliders" style="font-size:1.5rem; color:var(--agent-brain)"></i>
+      </header>
+
+      <label class="checkbox-field">
+        <input type="checkbox" formControlName="useOpenRouter" />
+        <div class="item-info">
+          <div class="item-title">Enable OpenRouter</div>
+          <div class="item-meta">Route completions through OpenRouter API</div>
+        </div>
+      </label>
+
+      <div class="form-group" *ngIf="isOpenRouter">
+        <label class="field">
+          <span>OpenRouter Model</span>
+          <input formControlName="openRouterModel" placeholder="openai/gpt-4.1-mini" />
+        </label>
+        <label class="field">
+          <span>OpenRouter API Key</span>
+          <input type="password" formControlName="openRouterApiKey" placeholder="sk-or-..." />
+        </label>
+      </div>
+    </section>
+
+
+
+    <!-- Card 4: Notes -->
+    <section class="settings-card">
+      <header class="settings-header">
+        <div class="item-info">
+          <h2>Operational Notes</h2>
+          <div class="item-meta">System instructions and content rules</div>
+        </div>
+        <i class="fa-solid fa-file-lines" style="font-size:1.5rem; color:var(--muted)"></i>
+      </header>
+      <label class="field">
+        <span>Notes</span>
+        <textarea rows="6" formControlName="notes"
+                  placeholder="System instructions, content rules, platform-specific logic..."></textarea>
+      </label>
+    </section>
+
+  </div>
+
+  <footer class="settings-footer">
+    <button type="button" class="primary-button"
+            [disabled]="settingsStore.savingAgentKey() === settings.agentKey || !agentForm.valid"
+            (click)="save()">
+      <i class="fa-solid"
+         [class.fa-floppy-disk]="settingsStore.savingAgentKey() !== settings.agentKey"
+         [class.fa-spinner]="settingsStore.savingAgentKey() === settings.agentKey"
+         [class.fa-spin]="settingsStore.savingAgentKey() === settings.agentKey"></i>
+      {{ settingsStore.savingAgentKey() === settings.agentKey ? 'Saving...' : 'Save Configuration' }}
+    </button>
+  </footer>
+</div>
+
+<ng-template #noAgent>
+  <div class="settings-container">
+    <div class="settings-card" style="text-align:center; padding:48px">
+      <i class="fa-solid fa-robot" style="font-size:3rem; color:var(--muted); margin-bottom:16px"></i>
+      <h2>Select an Agent</h2>
+      <p class="item-meta">Choose an agent from the side menu to configure it.</p>
+    </div>
+  </div>
+</ng-template>

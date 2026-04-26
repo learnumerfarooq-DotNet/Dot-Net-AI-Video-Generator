@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AiContentFactory.Api/AiContentFactory.Api.csproj" />
+  <Project Path="AiContentFactory.Application/AiContentFactory.Application.csproj" />
+  <Project Path="AiContentFactory.Domain/AiContentFactory.Domain.csproj" />
+  <Project Path="AiContentFactory.Infrastructure/AiContentFactory.Infrastructure.csproj" />
+</Solution>

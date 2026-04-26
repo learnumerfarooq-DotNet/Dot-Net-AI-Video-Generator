@@ -1,0 +1,21 @@
+<div class="page-content">
+  <section class="panel">
+    <header class="panel-header">
+      <h2>Global Memory</h2>
+      <i class="fa-solid fa-globe"></i>
+    </header>
+    <div class="memory-list">
+      <article class="memory-item" *ngFor="let item of memoryStore.globalMemories()">
+        <strong>{{ item.title }}</strong>
+        <p>{{ item.content }}</p>
+        <div class="item-meta">
+          <span class="badge badge-primary" *ngFor="let tag of item.tags">{{ tag }}</span>
+        </div>
+      </article>
+      <div class="empty-state" *ngIf="!memoryStore.globalMemories().length">
+        <i class="fa-solid fa-brain"></i>
+        <p>No global memories approved yet.</p>
+      </div>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,28 @@
+<div class="drive-container">
+  <div class="drive-header">
+    <div class="breadcrumb">
+      <span>My Drive</span>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span class="active">Video Backlog</span>
+    </div>
+    <div class="drive-actions">
+      <button class="primary-button" (click)="createFolder()">
+        <i class="fa-solid fa-plus"></i>
+        New
+      </button>
+    </div>
+  </div>
+
+  <div class="explorer-grid">
+    <div class="explorer-item" *ngFor="let item of driveStore.driveFiles()" [class.folder]="item.type === 'folder'">
+      <div class="icon-wrapper" *ngIf="item.type === 'folder'">
+        <i class="fa-solid fa-folder"></i>
+      </div>
+      <div class="preview-wrapper" *ngIf="item.type !== 'folder'">
+        <i class="fa-solid" [ngClass]="getFileIcon(item.type)"></i>
+      </div>
+      <div class="item-name">{{ item.name }}</div>
+      <div class="item-info">{{ item.size }} &bull; {{ item.date }}</div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,43 @@
+<section class="content-grid">
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Memory Signals</h2>
+      <i class="fa-solid fa-brain"></i>
+    </div>
+    <div class="list-stack">
+      <div class="list-item">
+        <div class="item-info">
+          <div class="item-title">Global Memory</div>
+          <div class="item-meta">{{ memoryStore.globalMemoryCount() }} approved items</div>
+        </div>
+        <span class="badge badge-primary">Shared</span>
+      </div>
+      <div class="list-item">
+        <div class="item-info">
+          <div class="item-title">Local Memory</div>
+          <div class="item-meta">{{ memoryStore.localMemoryCount() }} approved items</div>
+        </div>
+        <span class="badge">Agent Specific</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Pending Review</h2>
+      <i class="fa-solid fa-clock-rotate-left"></i>
+    </div>
+    <div class="list-stack">
+      <div class="list-item" *ngFor="let item of memoryStore.reviewQueue()">
+        <div class="item-info">
+          <div class="item-title">{{ item.title }}</div>
+          <div class="item-meta">{{ item.agentKey || 'global' }} &bull; {{ item.tags.join(', ') }}</div>
+        </div>
+        <span class="item-meta">{{ item.createdAt | date:'MMM d' }}</span>
+      </div>
+      <div class="empty-state" *ngIf="!memoryStore.reviewQueue().length">
+        <i class="fa-solid fa-clipboard-check"></i><p>Nothing pending review.</p>
+      </div>
+    </div>
+  </section>
+</section>

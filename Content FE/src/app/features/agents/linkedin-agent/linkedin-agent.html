@@ -1,0 +1,70 @@
+<div class="agent-workspace" *ngIf="agentsStore.activeAgent() as agent">
+  <header class="agent-header">
+    <div class="agent-info">
+      <div class="agent-icon" style="color:#0a66c2; border-color:rgba(10,102,194,0.25)">
+        <i class="fa-brands fa-linkedin"></i>
+      </div>
+      <div class="agent-name-stack">
+        <h2>{{ agent.name }}</h2>
+        <div class="agent-status">
+          <span class="status-dot" [class.active]="agent.isConnected"></span>
+          {{ agent.isConnected ? 'Connected' : 'Disconnected' }} &bull; Publishing Agent
+        </div>
+      </div>
+    </div>
+    <button type="button" class="ghost-button" [routerLink]="'/settings/linkedin-agent'">
+      <i class="fa-solid fa-sliders"></i>
+      <span>AI Settings</span>
+    </button>
+  </header>
+
+  <div class="agent-layout">
+    <app-agent-chat [agent]="agent"></app-agent-chat>
+
+    <aside class="detail-section">
+      <section class="detail-card">
+        <h3><i class="fa-brands fa-linkedin"></i> LinkedIn Integration</h3>
+        <p style="font-size:0.875rem; color:var(--muted); line-height:1.6; margin:0 0 16px">
+          Ask this agent to walk you through connecting your LinkedIn account. The agent will guide you through OAuth setup and channel configuration via chat.
+        </p>
+        
+        <div class="capability-pill">Article Posts</div>
+        <div class="capability-pill">Video Upload</div>
+        <div class="capability-pill">Company Page</div>
+        <div class="capability-pill">Thought Leadership</div>
+      </section>
+
+      <section class="detail-card">
+        <h3><i class="fa-solid fa-lightbulb"></i> Try Asking</h3>
+        <div class="list-stack">
+                    <div class="list-item">
+            <div class="item-info">
+              <div class="item-meta">"Post an update to LinkedIn"</div>
+            </div>
+          </div>          <div class="list-item">
+            <div class="item-info">
+              <div class="item-meta">"Connect LinkedIn account"</div>
+            </div>
+          </div>          <div class="list-item">
+            <div class="item-info">
+              <div class="item-meta">"Schedule a video post"</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="detail-card">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Runs</h3>
+        <div class="list-stack">
+          <div class="list-item" *ngFor="let run of agent.recentRuns">
+            <div class="item-info">
+              <div class="item-title">{{ run.title }}</div>
+              <div class="item-meta">{{ run.status }}</div>
+            </div>
+            <span class="item-meta">{{ run.queuedAt | date:'h:mm a' }}</span>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

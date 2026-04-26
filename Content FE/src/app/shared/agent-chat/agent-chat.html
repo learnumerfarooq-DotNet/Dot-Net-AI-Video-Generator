@@ -1,0 +1,42 @@
+<div class="chat-section">
+  <div class="chat-history" #chatHistoryRef>
+    <div class="message"
+         *ngFor="let msg of agentsStore.activeAgentMessages()"
+         [class.user]="msg.role === 'user'"
+         [class.assistant]="msg.role === 'assistant'">
+      <div class="item-title" style="margin-bottom:4px;font-size:0.8rem;opacity:0.7">
+        {{ msg.role === 'user' ? 'You' : agent.name }}
+      </div>
+      {{ msg.content }}
+      <div class="item-meta" style="margin-top:8px;text-align:right;font-size:0.7rem">
+        {{ msg.createdAt | date:'h:mm a' }}
+      </div>
+    </div>
+
+    <div class="connect-guard" *ngIf="agent.requiresConnection && !agent.isConnected">
+      <i class="fa-solid fa-plug-circle-xmark"></i>
+      <h3>Action Required</h3>
+      <p>Configure the API provider in Settings to enable live agent interactions.</p>
+      <button class="primary-button"
+              (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)">
+        Configure API
+      </button>
+    </div>
+  </div>
+
+  <div class="chat-composer">
+    <textarea rows="1"
+              [ngModel]="agentsStore.chatDraft()"
+              (ngModelChange)="agentsStore.updateChatDraft($event)"
+              [placeholder]="'Message ' + agent.name + '...'"
+              (keydown.enter)="onKeyDown($event)"></textarea>
+    <button type="button" class="send-button"
+            [disabled]="agentsStore.sendingChat() || !agentsStore.chatDraft()"
+            (click)="sendMessage()">
+      <i class="fa-solid"
+         [class.fa-paper-plane]="!agentsStore.sendingChat()"
+         [class.fa-spinner]="agentsStore.sendingChat()"
+         [class.fa-spin]="agentsStore.sendingChat()"></i>
+    </button>
+  </div>
+</div>

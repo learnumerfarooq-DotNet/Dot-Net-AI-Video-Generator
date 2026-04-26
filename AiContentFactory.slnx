@@ -1,6 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/AiContentFactory.Api/AiContentFactory.Api.csproj" />
-    <Project Path="src/AiContentFactory.Infrastructure/AiContentFactory.Infrastructure.csproj" />
-  </Folder>
-</Solution>

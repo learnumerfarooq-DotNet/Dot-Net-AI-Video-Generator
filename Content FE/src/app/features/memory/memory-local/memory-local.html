@@ -1,0 +1,22 @@
+<div class="page-content">
+  <section class="panel">
+    <header class="panel-header">
+      <h2>Local Memory</h2>
+      <i class="fa-solid fa-layer-group"></i>
+    </header>
+    <div class="memory-list">
+      <article class="memory-item" *ngFor="let item of memoryStore.localMemories()">
+        <strong>{{ item.title }}</strong>
+        <div class="item-meta" style="margin-bottom:8px">{{ item.agentKey }}</div>
+        <p>{{ item.content }}</p>
+        <div class="item-meta">
+          <span class="badge" *ngFor="let tag of item.tags">{{ tag }}</span>
+        </div>
+      </article>
+      <div class="empty-state" *ngIf="!memoryStore.localMemories().length">
+        <i class="fa-solid fa-layer-group"></i>
+        <p>No agent-specific memories approved yet.</p>
+      </div>
+    </div>
+  </section>
+</div>
