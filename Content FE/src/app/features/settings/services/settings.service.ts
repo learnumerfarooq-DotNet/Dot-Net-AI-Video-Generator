@@ -12,4 +12,12 @@ export class SettingsService {
   saveAgentSettings(agentKey: string, request: SaveAgentSettingsRequest): Observable<AgentSettings> {
     return this.api.put<AgentSettings>(ENDPOINTS.SETTINGS, `agents/${agentKey}`, request);
   }
+
+  testAgentConnection(agentKey: string): Observable<any> {
+    return this.api.postAction<any>(ENDPOINTS.AGENTS, `${agentKey}/connection/test`, {});
+  }
+
+  testDriveConnection(): Observable<any> {
+    return this.api.postAction<any>(ENDPOINTS.DRIVE, 'connection/test', {});
+  }
 }

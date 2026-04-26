@@ -12,8 +12,10 @@ public sealed class JsonMemoryRepository(IJsonFileStore store) : IMemoryReposito
 
     public async Task<IReadOnlyList<MemoryEntry>> SearchAsync(MemorySearchRequest request, CancellationToken cancellationToken)
     {
+        var now = DateTimeOffset.UtcNow;
         var entries = await store.ReadAsync(EntriesFile, new List<MemoryEntry>(), cancellationToken);
         return entries
+            .Where(entry => entry.ExpiresAt == null || entry.ExpiresAt > now)
             .Where(entry => request.Scope is null || entry.Scope == request.Scope)
             .Where(entry => string.IsNullOrWhiteSpace(request.AgentName) ||
                 string.Equals(entry.AgentName, request.AgentName, StringComparison.OrdinalIgnoreCase))
@@ -47,7 +49,7 @@ public sealed class JsonMemoryRepository(IJsonFileStore store) : IMemoryReposito
         }
     }
 
-    public async Task<MemoryEntry?> ApproveSuggestionAsync(Guid suggestionId, string? revisedContent, CancellationToken cancellationToken)
+    public async Task<MemoryEntry?> ApproveSuggestionAsync(Guid suggestionId, string? revisedContent, DateTimeOffset? expiresAt, CancellationToken cancellationToken)
     {
         await _lock.WaitAsync(cancellationToken);
         try
@@ -70,7 +72,8 @@ public sealed class JsonMemoryRepository(IJsonFileStore store) : IMemoryReposito
                 string.IsNullOrWhiteSpace(revisedContent) ? suggestion.Content : revisedContent,
                 ["approved"],
                 now,
-                now);
+                now,
+                expiresAt);
 
             var entries = await store.ReadAsync(EntriesFile, new List<MemoryEntry>(), cancellationToken);
             entries.Add(entry);
@@ -108,13 +111,13 @@ public sealed class JsonMemoryRepository(IJsonFileStore store) : IMemoryReposito
         }
     }
 
-    public async Task<MemoryEntry> SaveLocalAsync(string agentName, string content, IReadOnlyList<string> tags, CancellationToken cancellationToken)
+    public async Task<MemoryEntry> SaveLocalAsync(string agentName, string content, IReadOnlyList<string> tags, DateTimeOffset? expiresAt, CancellationToken cancellationToken)
     {
         await _lock.WaitAsync(cancellationToken);
         try
         {
             var now = DateTimeOffset.UtcNow;
-            var entry = new MemoryEntry(Guid.NewGuid(), MemoryScope.Local, agentName, content, tags, now, now);
+            var entry = new MemoryEntry(Guid.NewGuid(), MemoryScope.Local, agentName, content, tags, now, now, expiresAt);
             var entries = await store.ReadAsync(EntriesFile, new List<MemoryEntry>(), cancellationToken);
             entries.Add(entry);
             await store.WriteAsync(EntriesFile, entries, cancellationToken);

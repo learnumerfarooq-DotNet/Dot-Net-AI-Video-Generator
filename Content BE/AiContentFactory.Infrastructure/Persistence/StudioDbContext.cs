@@ -6,15 +6,19 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options) :
 {
     public DbSet<StudioAgentEntity> Agents => Set<StudioAgentEntity>();
     public DbSet<StudioAgentUsageEntity> AgentUsages => Set<StudioAgentUsageEntity>();
-    public DbSet<StudioMemoryEntity> Memories => Set<StudioMemoryEntity>();
+    public DbSet<StudioGlobalMemoryEntity> GlobalMemories => Set<StudioGlobalMemoryEntity>();
+    public DbSet<StudioAgentMemoryEntity> AgentMemories => Set<StudioAgentMemoryEntity>();
     public DbSet<StudioVideoEntity> Videos => Set<StudioVideoEntity>();
     public DbSet<StudioPublicationEntity> Publications => Set<StudioPublicationEntity>();
     public DbSet<StudioScheduleJobEntity> ScheduleJobs => Set<StudioScheduleJobEntity>();
     public DbSet<StudioChatMessageEntity> ChatMessages => Set<StudioChatMessageEntity>();
+    public DbSet<StudioAgentConnectionEntity> AgentConnections => Set<StudioAgentConnectionEntity>();
     public DbSet<StudioAgentRunEntity> AgentRuns => Set<StudioAgentRunEntity>();
+    public DbSet<StudioDriveConfigEntity> DriveConfigs => Set<StudioDriveConfigEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+
         modelBuilder.Entity<StudioAgentEntity>(entity =>
         {
             entity.ToTable("studio_agents");
@@ -23,15 +27,11 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options) :
             entity.Property(agent => agent.Key).HasMaxLength(120);
             entity.Property(agent => agent.Name).HasMaxLength(200);
             entity.Property(agent => agent.Category).HasMaxLength(100);
-            entity.Property(agent => agent.ProviderName).HasMaxLength(120);
-            entity.Property(agent => agent.ModelName).HasMaxLength(160);
-            entity.Property(agent => agent.BaseUrl).HasMaxLength(300);
             entity.Property(agent => agent.SourceVideoPath).HasMaxLength(300);
             entity.Property(agent => agent.StorageFolderId).HasMaxLength(200);
             entity.Property(agent => agent.StorageFolderName).HasMaxLength(200);
             entity.Property(agent => agent.StorageFolderPath).HasMaxLength(400);
             entity.Property(agent => agent.StorageFolderUrl).HasMaxLength(500);
-            entity.Property(agent => agent.OpenRouterModel).HasMaxLength(160);
             entity.Property(agent => agent.Status).HasMaxLength(120);
         });
 
@@ -44,16 +44,27 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options) :
             entity.Property(usage => usage.CostUsd).HasColumnType("numeric(12,4)");
         });
 
-        modelBuilder.Entity<StudioMemoryEntity>(entity =>
+        modelBuilder.Entity<StudioGlobalMemoryEntity>(entity =>
         {
-            entity.ToTable("studio_memories");
+            entity.ToTable("studio_global_memories");
             entity.HasKey(memory => memory.Id);
-            entity.HasIndex(memory => new { memory.Scope, memory.Status });
-            entity.Property(memory => memory.Scope).HasMaxLength(40);
+            entity.HasIndex(memory => memory.Status);
+            entity.Property(memory => memory.Title).HasMaxLength(240);
+            entity.Property(memory => memory.Status).HasMaxLength(40);
+            entity.Property(memory => memory.Tags).HasColumnType("text[]");
+            entity.Property(memory => memory.Embedding).HasColumnType("real[]");
+        });
+
+        modelBuilder.Entity<StudioAgentMemoryEntity>(entity =>
+        {
+            entity.ToTable("studio_agent_memories");
+            entity.HasKey(memory => memory.Id);
+            entity.HasIndex(memory => new { memory.AgentKey, memory.Status });
             entity.Property(memory => memory.AgentKey).HasMaxLength(120);
             entity.Property(memory => memory.Title).HasMaxLength(240);
             entity.Property(memory => memory.Status).HasMaxLength(40);
             entity.Property(memory => memory.Tags).HasColumnType("text[]");
+            entity.Property(memory => memory.Embedding).HasColumnType("real[]");
         });
 
         modelBuilder.Entity<StudioVideoEntity>(entity =>
@@ -115,6 +126,24 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options) :
             entity.Property(run => run.AgentKey).HasMaxLength(120);
             entity.Property(run => run.Title).HasMaxLength(200);
             entity.Property(run => run.Status).HasMaxLength(60);
+        });
+
+        modelBuilder.Entity<StudioDriveConfigEntity>(entity =>
+        {
+            entity.ToTable("studio_drive_configs");
+            entity.HasKey(config => config.Id);
+            entity.Property(config => config.ClientId).HasMaxLength(300);
+            entity.Property(config => config.RootFolderId).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<StudioAgentConnectionEntity>(entity =>
+        {
+            entity.ToTable("studio_agent_connections");
+            entity.HasKey(conn => conn.Id);
+            entity.HasIndex(conn => conn.AgentKey).IsUnique();
+            entity.Property(conn => conn.AgentKey).HasMaxLength(120);
+            entity.Property(conn => conn.ProviderName).HasMaxLength(120);
+            entity.Property(conn => conn.ModelName).HasMaxLength(160);
         });
     }
 }

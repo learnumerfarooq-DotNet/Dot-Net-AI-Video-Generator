@@ -71,7 +71,7 @@ public sealed class ContentFactoryFacade(
         => memoryRepository.GetPendingSuggestionsAsync(cancellationToken);
 
     public Task<MemoryEntry?> ApproveMemorySuggestionAsync(Guid id, ApproveMemorySuggestionRequest request, CancellationToken cancellationToken)
-        => memoryRepository.ApproveSuggestionAsync(id, request.RevisedContent, cancellationToken);
+        => memoryRepository.ApproveSuggestionAsync(id, request.RevisedContent, null, cancellationToken);
 
     public Task<bool> RejectMemorySuggestionAsync(Guid id, CancellationToken cancellationToken)
         => memoryRepository.RejectSuggestionAsync(id, cancellationToken);

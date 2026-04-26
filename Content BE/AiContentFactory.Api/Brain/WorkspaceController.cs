@@ -8,13 +8,18 @@ namespace AiContentFactory.Api.Brain;
 /// </summary>
 [ApiController]
 [Route("api/workspace")]
-public sealed class WorkspaceController(IStudioWorkspaceFacade facade) : ControllerBase
+public sealed class WorkspaceController : ControllerBase
 {
-    [HttpGet("bootstrap")]
-    [ProducesResponseType<WorkspaceBootstrapResponse>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetBootstrap(CancellationToken cancellationToken)
+    private readonly IStudioWorkspaceFacade _facade;
+
+    public WorkspaceController(IStudioWorkspaceFacade facade)
     {
-        var response = await facade.GetBootstrapAsync(cancellationToken);
-        return Ok(response);
+        _facade = facade;
+    }
+
+    [HttpGet("bootstrap")]
+    public async Task<ActionResult<WorkspaceBootstrapResponse>> GetBootstrap(CancellationToken cancellationToken)
+    {
+        return Ok(await _facade.GetBootstrapAsync(cancellationToken));
     }
 }

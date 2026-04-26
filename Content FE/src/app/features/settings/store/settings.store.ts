@@ -41,6 +41,9 @@ type SettingsState = {
   providerCredentials: Record<string, Record<string, string>>;
   savingAgentKey: string | null;
   savingProviders: boolean;
+  testingAgentKey: string | null;
+  testingDrive: boolean;
+  testResult: { success: boolean; message: string; details?: string } | null;
   status: string;
 };
 
@@ -52,6 +55,9 @@ const initialState: SettingsState = {
   providerCredentials: {},
   savingAgentKey: null,
   savingProviders: false,
+  testingAgentKey: null,
+  testingDrive: false,
+  testResult: null,
   status: 'Ready'
 };
 
@@ -144,6 +150,30 @@ export const SettingsStore = signalStore(
       } catch (error) {
         patchState(store, { savingProviders: false, status: `Provider save failed: ${readError(error)}` });
       }
+    },
+
+    async testAgentConnection(agentKey: string) {
+      patchState(store, { testingAgentKey: agentKey, testResult: null, status: 'Testing agent connection...' });
+      try {
+        const result = await firstValueFrom(settingsSvc.testAgentConnection(agentKey));
+        patchState(store, { testingAgentKey: null, testResult: result, status: result.success ? 'Agent connection OK.' : 'Agent connection failed.' });
+      } catch (error) {
+        patchState(store, { testingAgentKey: null, testResult: { success: false, message: 'Test failed', details: readError(error) }, status: 'Agent test error.' });
+      }
+    },
+
+    async testDriveConnection() {
+      patchState(store, { testingDrive: true, testResult: null, status: 'Testing Drive connection...' });
+      try {
+        const result = await firstValueFrom(settingsSvc.testDriveConnection());
+        patchState(store, { testingDrive: false, testResult: result, status: result.success ? 'Drive connection OK.' : 'Drive connection failed.' });
+      } catch (error) {
+        patchState(store, { testingDrive: false, testResult: { success: false, message: 'Test failed', details: readError(error) }, status: 'Drive test error.' });
+      }
+    },
+
+    clearTestResult() {
+      patchState(store, { testResult: null });
     }
   }))
 );

@@ -9,4 +9,6 @@ public sealed record MemoryEntry(
     string Content,
     IReadOnlyList<string> Tags,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt) : AggregateRoot(Id);
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? ExpiresAt = null,
+    float Score = 0) : AggregateRoot(Id);

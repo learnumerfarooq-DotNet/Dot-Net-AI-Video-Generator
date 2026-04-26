@@ -15,5 +15,8 @@ export const ENDPOINTS = {
   VIDEOS: 'api/videos',
   SCHEDULER: 'api/scheduler',
   SETTINGS: 'api/settings',
-  DRIVE: 'api/drive'
+  DRIVE: 'api/drive',
+  DASHBOARD_SUMMARY: 'api/dashboard/summary',
+  DASHBOARD_VIDEOS: 'api/dashboard/videos',
+  DASHBOARD_RUNS: 'api/dashboard/runs'
 } as const;

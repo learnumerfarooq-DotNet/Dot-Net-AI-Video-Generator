@@ -63,10 +63,52 @@ public sealed class DriveController(IStudioWorkspaceFacade facade) : ControllerB
     /// <summary>Lists files and folders inside the configured Drive root folder.</summary>
     [HttpGet("files")]
     [ProducesResponseType<IReadOnlyList<DriveFileDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListFiles(CancellationToken cancellationToken)
+    public async Task<IActionResult> ListFiles(
+        [FromQuery] string? folderId,
+        CancellationToken cancellationToken)
     {
-        var files = await facade.ListDriveFilesAsync(cancellationToken);
+        var files = await facade.ListDriveFilesAsync(folderId, cancellationToken);
         return Ok(files);
+    }
+
+    /// <summary>Uploads a file to the specified folder (or root if not provided).</summary>
+    [HttpPost("files/upload")]
+    [ProducesResponseType<DriveFileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UploadFile(
+        [FromQuery] string? folderId,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("No file uploaded.");
+
+        using var stream = file.OpenReadStream();
+        var result = await facade.UploadDriveFileAsync(folderId, file.FileName, file.ContentType, stream, cancellationToken);
+
+        return result is null
+            ? Problem("Drive file upload failed.")
+            : Ok(result);
+    }
+
+    /// <summary>Downloads a file from Google Drive.</summary>
+    [HttpGet("files/{fileId}/download")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadFile(
+        [FromRoute] string fileId,
+        CancellationToken cancellationToken)
+    {
+        var result = await facade.DownloadDriveFileAsync(fileId, cancellationToken);
+        if (result == null) return NotFound("File not found in Google Drive.");
+
+        var contentType = result.Value.ContentType;
+        if (contentType.StartsWith("text/") || contentType.Contains("json") || contentType.Contains("markdown"))
+        {
+            if (!contentType.Contains("charset")) contentType += "; charset=utf-8";
+        }
+
+        return File(result.Value.Content, contentType, result.Value.FileName);
     }
 
     /// <summary>Creates a sub-folder inside the configured Drive root folder.</summary>
@@ -74,10 +116,11 @@ public sealed class DriveController(IStudioWorkspaceFacade facade) : ControllerB
     [ProducesResponseType<DriveFileDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> CreateFolder(
+        [FromQuery] string? folderId,
         [FromBody] CreateFolderRequest request,
         CancellationToken cancellationToken)
     {
-        var folder = await facade.CreateDriveFolderAsync(request.Name, cancellationToken);
+        var folder = await facade.CreateDriveFolderAsync(folderId, request.Name, cancellationToken);
         return folder is null
             ? Problem("Drive folder creation failed; check credentials and folder permissions.")
             : Ok(folder);
@@ -92,5 +135,14 @@ public sealed class DriveController(IStudioWorkspaceFacade facade) : ControllerB
     {
         var settings = await facade.SaveDriveSettingsAsync(request, cancellationToken);
         return Ok(settings);
+    }
+
+    /// <summary>Tests the current Google Drive connection.</summary>
+    [HttpPost("connection/test")]
+    [ProducesResponseType<ConnectionTestResult>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TestConnection(CancellationToken cancellationToken)
+    {
+        var result = await facade.TestDriveConnectionAsync(cancellationToken);
+        return Ok(result);
     }
 }

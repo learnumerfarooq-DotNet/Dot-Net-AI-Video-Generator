@@ -20,6 +20,8 @@ public sealed class OpenRouterChatProvider(HttpClient httpClient) : IChatProvide
         
         var req = new HttpRequestMessage(HttpMethod.Post, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        req.Headers.Add("X-Title", "AI Content Factory");
+        req.Headers.Add("HTTP-Referer", "http://localhost:4200");
         
         var payload = new
         {
@@ -59,6 +61,78 @@ public sealed class OpenRouterChatProvider(HttpClient httpClient) : IChatProvide
             tokensOut,
             cost,
             (int)sw.ElapsedMilliseconds);
+    }
+
+    public async IAsyncEnumerable<string> StreamAsync(
+        ChatCompletionRequest request,
+        string apiKey,
+        string baseUrl,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var url = string.IsNullOrWhiteSpace(baseUrl) ? "https://openrouter.ai/api/v1/chat/completions" : baseUrl;
+        
+        var req = new HttpRequestMessage(HttpMethod.Post, url);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        req.Headers.Add("X-Title", "AI Content Factory");
+        req.Headers.Add("HTTP-Referer", "http://localhost:4200");
+        
+        var payload = new
+        {
+            model = request.ModelName,
+            stream = true,
+            messages = new List<object>
+            {
+                new { role = "system", content = request.SystemPrompt }
+            }.Concat(request.History.Select(m => new { role = m.Role, content = m.Content }))
+        };
+
+        req.Content = JsonContent.Create(payload);
+
+        using var response = await httpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new System.IO.StreamReader(stream);
+
+        while (true)
+        {
+            var line = await reader.ReadLineAsync(cancellationToken);
+            if (line == null) break;
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            if (line.StartsWith("data: [DONE]")) break;
+            if (line.StartsWith("data: "))
+            {
+                var json = line["data: ".Length..];
+                OpenRouterStreamResponse? chunk = null;
+                try {
+                    chunk = System.Text.Json.JsonSerializer.Deserialize<OpenRouterStreamResponse>(json);
+                } catch { /* ignore partial/malformed JSON in stream */ }
+
+                var delta = chunk?.Choices?.FirstOrDefault()?.Delta?.Content;
+                if (!string.IsNullOrEmpty(delta))
+                {
+                    yield return delta;
+                }
+            }
+        }
+    }
+
+    private sealed class OpenRouterStreamResponse
+    {
+        [JsonPropertyName("choices")]
+        public List<StreamChoice>? Choices { get; set; }
+    }
+
+    private sealed class StreamChoice
+    {
+        [JsonPropertyName("delta")]
+        public ChoiceDelta? Delta { get; set; }
+    }
+
+    private sealed class ChoiceDelta
+    {
+        [JsonPropertyName("content")]
+        public string? Content { get; set; }
     }
 
     private sealed class OpenRouterResponse

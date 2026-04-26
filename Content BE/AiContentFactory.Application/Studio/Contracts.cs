@@ -1,5 +1,11 @@
 namespace AiContentFactory.Application.Studio;
 
+public sealed record PaginatedListDto<T>(
+    IReadOnlyList<T> Items,
+    int TotalCount,
+    int Page,
+    int PageSize);
+
 public sealed record WorkspaceBootstrapResponse(
     DashboardWorkspaceDto Dashboard,
     AgentWorkspaceDto Agents,
@@ -84,7 +90,9 @@ public sealed record AgentRunDto(
     string Status,
     string Summary,
     DateTimeOffset QueuedAt,
-    DateTimeOffset? CompletedAt);
+    DateTimeOffset? CompletedAt,
+    int AttemptCount = 1,
+    int MaxRetries = 1);
 
 public sealed record AgentSummaryDto(
     string Key,
@@ -122,6 +130,11 @@ public sealed record AgentChatResponse(
     string Message,
     IReadOnlyList<ChatMessageDto> Messages);
 
+public sealed record AgentStreamChunk(
+    string Type, // 'thought' | 'delta' | 'tool' | 'done'
+    string Content,
+    ChatMessageDto? Message = null);
+
 public sealed record MemoryRecordDto(
     Guid Id,
     string Scope,
@@ -132,7 +145,8 @@ public sealed record MemoryRecordDto(
     IReadOnlyList<string> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    DateTimeOffset? ApprovedAt);
+    DateTimeOffset? ApprovedAt,
+    DateTimeOffset? ExpiresAt = null);
 
 public sealed record MemorySuggestionDto(
     Guid Id,
@@ -199,7 +213,7 @@ public sealed record DriveSettingsDto(
 
 public sealed record SendAgentMessageRequest(string Message);
 
-public sealed record ReviewMemoryRequest(string? RevisedTitle, string? RevisedContent);
+public sealed record ReviewMemoryRequest(string? RevisedTitle, string? RevisedContent, int? TtlDays = null);
 
 public sealed record UpdateVideoStageRequest(string Stage);
 
@@ -233,3 +247,8 @@ public sealed record SaveDriveSettingsRequest(
     string ClientSecret,
     string RefreshToken,
     string RootFolderId);
+
+public sealed record ConnectionTestResult(
+    bool Success,
+    string Message,
+    string? Details = null);

@@ -83,10 +83,30 @@
                   placeholder="System instructions, content rules, platform-specific logic..."></textarea>
       </label>
     </section>
+  </div>
 
+  <div class="test-result-alert" *ngIf="settingsStore.testResult() as result" [class.success]="result.success" [class.error]="!result.success">
+    <div class="alert-content">
+      <i class="fa-solid" [class.fa-circle-check]="result.success" [class.fa-circle-exclamation]="!result.success"></i>
+      <div class="alert-text">
+        <strong>{{ result.success ? 'Connection OK' : 'Connection Failed' }}</strong>
+        <p>{{ result.message }}</p>
+        <small *ngIf="result.details">{{ result.details }}</small>
+      </div>
+    </div>
+    <button class="close-btn" (click)="settingsStore.clearTestResult()">×</button>
   </div>
 
   <footer class="settings-footer">
+    <button type="button" class="secondary-button"
+            [disabled]="settingsStore.testingAgentKey() === settings.agentKey"
+            (click)="test()">
+      <i class="fa-solid"
+         [class.fa-vial]="settingsStore.testingAgentKey() !== settings.agentKey"
+         [class.fa-spinner]="settingsStore.testingAgentKey() === settings.agentKey"
+         [class.fa-spin]="settingsStore.testingAgentKey() === settings.agentKey"></i>
+      {{ settingsStore.testingAgentKey() === settings.agentKey ? 'Testing...' : 'Test Connection' }}
+    </button>
     <button type="button" class="primary-button"
             [disabled]="settingsStore.savingAgentKey() === settings.agentKey || !agentForm.valid"
             (click)="save()">

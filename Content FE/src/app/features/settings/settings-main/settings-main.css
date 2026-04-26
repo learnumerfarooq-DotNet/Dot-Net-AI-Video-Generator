@@ -1,0 +1,192 @@
+.settings-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-darker);
+  color: #fff;
+  overflow: hidden;
+}
+
+.settings-header {
+  padding: 2rem 3rem 0;
+  background: linear-gradient(180deg, rgba(20, 20, 25, 1) 0%, rgba(20, 20, 25, 0.8) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.header-content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(90deg, #fff, #aaa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 2rem;
+}
+
+.settings-tabs button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 1rem 0;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.settings-tabs button i {
+  font-size: 1.1rem;
+}
+
+.settings-tabs button:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.settings-tabs button.active {
+  color: #00f2fe;
+}
+
+.settings-tabs button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #00f2fe, #4facfe);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+}
+
+.settings-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* AGENTS TAB LAYOUT */
+.agents-tab-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: 100%;
+}
+
+.agents-sidebar {
+  background: rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.agents-sidebar h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 1.5rem;
+}
+
+.agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agent-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.agent-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.agent-item.active {
+  background: rgba(0, 242, 254, 0.05);
+  border-color: rgba(0, 242, 254, 0.3);
+}
+
+.agent-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #434343 0%, #000000 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agent-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-info .name {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.agent-info .status {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.agent-info .status.connected {
+  color: #4ade80;
+}
+
+.agent-form-area {
+  padding: 2rem 3rem;
+  overflow-y: auto;
+  background: radial-gradient(circle at top right, rgba(0, 242, 254, 0.03), transparent);
+}
+
+/* STORAGE TAB LAYOUT */
+.storage-tab-layout {
+  height: 100%;
+  padding: 2rem 3rem;
+  overflow-y: auto;
+}
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.2);
+  gap: 1rem;
+}
+
+.empty-state i {
+  font-size: 3rem;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+}

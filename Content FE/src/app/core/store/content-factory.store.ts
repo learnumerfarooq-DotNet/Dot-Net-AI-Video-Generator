@@ -60,7 +60,8 @@ export const ContentFactoryStore = signalStore(
       activeAgentKey: computed(() => getActiveAgentKey(store.activeSection(), store.activeSideTab())),
       pendingMemoryCount: computed(() => workspace()?.memory.reviewQueue.length ?? 0),
       connectedAgentCount: computed(() => workspace()?.agents.agents.filter((agent) => agent.isConnected).length ?? 0),
-      readyItems: computed(() => workspace()?.dashboard.readyVideos.length ?? 0)
+      readyItems: computed(() => workspace()?.dashboard.readyVideos.length ?? 0),
+      agents: computed(() => workspace()?.agents.agents ?? [])
     };
   }),
   withMethods((
@@ -72,20 +73,8 @@ export const ContentFactoryStore = signalStore(
     driveStore = inject(DriveStore),
     settingsStore = inject(SettingsStore),
     schedulerStore = inject(SchedulerStore)
-  ) => ({
-    async init() {
-      const savedTheme = window.localStorage.getItem('contentFactoryTheme');
-      const savedSidebar = window.localStorage.getItem('contentFactorySidebar');
-
-      patchState(store, {
-        theme: savedTheme === 'dark' ? 'dark' : 'light',
-        sidebarCollapsed: savedSidebar === 'collapsed'
-      });
-
-      await this.refreshAll();
-    },
-
-    async refreshAll() {
+  ) => {
+    async function refreshAll() {
       patchState(store, { loading: true, status: 'Syncing workspace...' });
 
       try {
@@ -112,34 +101,54 @@ export const ContentFactoryStore = signalStore(
           status: `Workspace sync failed: ${readError(error)}`
         });
       }
-    },
-
-    setSection(section: TopSectionId) {
-      let activeSideTab = MENU_BY_SECTION[section][0].id;
-      
-      patchState(store, {
-        activeSection: section,
-        activeSideTab: activeSideTab
-      });
-      agentsStore.setActiveAgentKey(getActiveAgentKey(section, activeSideTab));
-    },
-
-    setSideTab(tab: SideTabId) {
-      patchState(store, { activeSideTab: tab });
-      agentsStore.setActiveAgentKey(getActiveAgentKey(store.activeSection(), tab));
-    },
-
-    setTheme(theme: ThemeMode) {
-      window.localStorage.setItem('contentFactoryTheme', theme);
-      patchState(store, { theme });
-    },
-
-    toggleSidebar() {
-      const next = !store.sidebarCollapsed();
-      window.localStorage.setItem('contentFactorySidebar', next ? 'collapsed' : 'open');
-      patchState(store, { sidebarCollapsed: next });
     }
-  }))
+
+    return {
+      async init() {
+        const savedTheme = window.localStorage.getItem('contentFactoryTheme');
+        const savedSidebar = window.localStorage.getItem('contentFactorySidebar');
+
+        patchState(store, {
+          theme: savedTheme === 'dark' ? 'dark' : 'light',
+          sidebarCollapsed: savedSidebar === 'collapsed'
+        });
+
+        await refreshAll();
+      },
+
+      refreshAll,
+
+      setSection(section: TopSectionId) {
+        let activeSideTab = MENU_BY_SECTION[section][0].id;
+        
+        patchState(store, {
+          activeSection: section,
+          activeSideTab: activeSideTab
+        });
+        agentsStore.setActiveAgentKey(getActiveAgentKey(section, activeSideTab));
+      },
+
+      setSideTab(tab: SideTabId) {
+        patchState(store, { activeSideTab: tab });
+        agentsStore.setActiveAgentKey(getActiveAgentKey(store.activeSection(), tab));
+      },
+
+      setTheme(theme: ThemeMode) {
+        window.localStorage.setItem('contentFactoryTheme', theme);
+        patchState(store, { theme });
+      },
+
+      toggleSidebar() {
+        const next = !store.sidebarCollapsed();
+        window.localStorage.setItem('contentFactorySidebar', next ? 'collapsed' : 'open');
+        patchState(store, { sidebarCollapsed: next });
+      },
+
+      setActiveAgent(key: string) {
+        agentsStore.setActiveAgentKey(key);
+      }
+    };
+  })
 );
 
 function getActiveAgentKey(section: TopSectionId, tab: SideTabId): string | null {

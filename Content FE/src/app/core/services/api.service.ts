@@ -39,4 +39,8 @@ export class ApiService {
   getAction<T>(endpoint: string, actionPath: string, params?: any): Observable<T> {
     return this.http.get<T>(this.getUrl(endpoint, actionPath), { params });
   }
+
+  getBlob(url: string): Observable<Blob> {
+    return this.http.get(this.getUrl(url), { responseType: 'blob' });
+  }
 }

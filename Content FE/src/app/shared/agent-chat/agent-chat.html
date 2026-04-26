@@ -13,6 +13,19 @@
       </div>
     </div>
 
+    <!-- Streaming message block -->
+    <div class="message assistant" *ngIf="agentsStore.isThinking() || agentsStore.streamingContent()">
+      <div class="item-title" style="margin-bottom:4px;font-size:0.8rem;opacity:0.7">
+        {{ agent.name }}
+      </div>
+      <div class="thinking-loader" *ngIf="agentsStore.isThinking()">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <div class="streaming-content">
+        {{ agentsStore.streamingContent() }}
+      </div>
+    </div>
+
     <div class="connect-guard" *ngIf="agent.requiresConnection && !agent.isConnected">
       <i class="fa-solid fa-plug-circle-xmark"></i>
       <h3>Action Required</h3>
@@ -24,7 +37,7 @@
     </div>
   </div>
 
-  <div class="chat-composer">
+  <div class="chat-composer" *ngIf="!agent.requiresConnection || agent.isConnected">
     <textarea rows="1"
               [ngModel]="agentsStore.chatDraft()"
               (ngModelChange)="agentsStore.updateChatDraft($event)"

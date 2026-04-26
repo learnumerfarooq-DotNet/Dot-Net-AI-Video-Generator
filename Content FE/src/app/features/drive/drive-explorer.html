@@ -1,28 +1,125 @@
 <div class="drive-container">
-  <div class="drive-header">
-    <div class="breadcrumb">
-      <span>My Drive</span>
-      <i class="fa-solid fa-chevron-right"></i>
-      <span class="active">Video Backlog</span>
+  <div class="drive-header-card">
+    <div class="header-left">
+      <div class="breadcrumb-container">
+        <ng-container *ngFor="let crumb of driveStore.breadcrumbs(); let last = last">
+          <span class="crumb" [class.active]="last" (click)="onBreadcrumbClick(crumb)">{{ crumb.name }}</span>
+          <i class="fa-solid fa-chevron-right separator" *ngIf="!last"></i>
+        </ng-container>
+      </div>
+      <h2 class="current-folder-title" *ngIf="driveStore.breadcrumbs().length > 1">
+        {{ driveStore.breadcrumbs()[driveStore.breadcrumbs().length - 1].name }}
+      </h2>
     </div>
+    
     <div class="drive-actions">
-      <button class="primary-button" (click)="createFolder()">
-        <i class="fa-solid fa-plus"></i>
-        New
+      <button class="action-btn secondary" (click)="showUploadModal = true">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Upload File</span>
+      </button>
+      <button class="action-btn primary" (click)="showNewFolderModal = true">
+        <i class="fa-solid fa-folder-plus"></i>
+        <span>New Folder</span>
       </button>
     </div>
   </div>
 
-  <div class="explorer-grid">
-    <div class="explorer-item" *ngFor="let item of driveStore.driveFiles()" [class.folder]="item.type === 'folder'">
-      <div class="icon-wrapper" *ngIf="item.type === 'folder'">
-        <i class="fa-solid fa-folder"></i>
+  <!-- Main Content Area -->
+  <div class="explorer-viewport">
+    <!-- Loader Overlay -->
+    <div class="content-loader" *ngIf="driveStore.loadingDrive()">
+      <div class="premium-spinner">
+        <div class="inner"></div>
+        <div class="outer"></div>
       </div>
-      <div class="preview-wrapper" *ngIf="item.type !== 'folder'">
-        <i class="fa-solid" [ngClass]="getFileIcon(item.type)"></i>
+      <span class="loader-text">{{ driveStore.status() }}</span>
+    </div>
+
+    <!-- Explorer Grid -->
+    <div class="explorer-grid" *ngIf="!driveStore.loadingDrive()">
+      <!-- Folder Item -->
+      <div class="explorer-item folder-card" *ngFor="let item of driveStore.driveFiles()" 
+           [class.is-folder]="item.type === 'folder' || item.Type === 'folder'"
+           (click)="onItemClick(item)">
+        
+        <div class="item-overlay-actions">
+          <button class="mini-btn" (click)="downloadFile($event, item)" 
+                  *ngIf="item.type !== 'folder' && item.Type !== 'folder'"
+                  title="Download Asset">
+            <i class="fa-solid fa-download"></i>
+          </button>
+        </div>
+
+        <div class="visual-container">
+          <div class="folder-icon-glow" *ngIf="item.type === 'folder' || item.Type === 'folder'">
+            <i class="fa-solid fa-folder"></i>
+          </div>
+          <div class="file-icon-glow" *ngIf="item.type !== 'folder' && item.Type !== 'folder'">
+            <i class="fa-solid" [ngClass]="getFileIcon(item.type || item.Type)"></i>
+          </div>
+        </div>
+
+        <div class="item-meta">
+          <span class="name">{{ item.name || item.Name }}</span>
+          <span class="details">{{ item.size || item.Size || '-' }} &bull; {{ item.date || item.Date }}</span>
+        </div>
       </div>
-      <div class="item-name">{{ item.name }}</div>
-      <div class="item-info">{{ item.size }} &bull; {{ item.date }}</div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!driveStore.loadingDrive() && driveStore.driveFiles().length === 0">
+      <i class="fa-solid fa-folder-open"></i>
+      <p>This folder is empty</p>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="sticky-footer" *ngIf="driveStore.breadcrumbs().length > 1">
+    <button class="back-nav-btn" (click)="goBack()">
+      <i class="fa-solid fa-arrow-left"></i>
+      <span>Back to {{ driveStore.breadcrumbs()[driveStore.breadcrumbs().length - 2].name }}</span>
+    </button>
+  </div>
+
+  <!-- Modals -->
+  <div class="premium-modal-overlay" *ngIf="showNewFolderModal" (click)="showNewFolderModal = false">
+    <div class="premium-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>New Folder</h3>
+        <button class="close-btn" (click)="showNewFolderModal = false"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint">Enter a name for your new directory in Google Drive.</p>
+        <div class="input-group">
+          <i class="fa-solid fa-folder input-icon"></i>
+          <input type="text" [(ngModel)]="newFolderName" placeholder="Folder Name..." (keyup.enter)="confirmCreateFolder()" autofocus>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="showNewFolderModal = false">Cancel</button>
+        <button class="btn-confirm" [disabled]="!newFolderName.trim()" (click)="confirmCreateFolder()">Create Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="premium-modal-overlay" *ngIf="showUploadModal" (click)="showUploadModal = false">
+    <div class="premium-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Upload Asset</h3>
+        <button class="close-btn" (click)="showUploadModal = false"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="upload-drop-zone" (click)="fileInput.click()">
+          <i class="fa-solid fa-cloud-arrow-up main-icon"></i>
+          <p *ngIf="!selectedFile">Click to select a file from your computer</p>
+          <p class="selected-name" *ngIf="selectedFile">{{ selectedFile.name }}</p>
+          <input type="file" #fileInput (change)="onFileSelected($event)" style="display: none">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="showUploadModal = false">Cancel</button>
+        <button class="btn-confirm" [disabled]="!selectedFile" (click)="confirmUpload()">Start Upload</button>
+      </div>
     </div>
   </div>
 </div>

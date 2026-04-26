@@ -23,4 +23,10 @@ public interface IChatProvider
         string apiKey,
         string baseUrl,
         CancellationToken cancellationToken);
+
+    IAsyncEnumerable<string> StreamAsync(
+        ChatCompletionRequest request,
+        string apiKey,
+        string baseUrl,
+        CancellationToken cancellationToken);
 }

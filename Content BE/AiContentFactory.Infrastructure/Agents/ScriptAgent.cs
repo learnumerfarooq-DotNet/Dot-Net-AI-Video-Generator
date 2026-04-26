@@ -24,6 +24,7 @@ public sealed class ScriptAgent(
                 Name,
                 $"Generated {request.Format} script for {request.Platform} topic '{request.Topic}'.",
                 ["script", request.Platform, request.Format],
+                null,
                 cancellationToken);
         }
 

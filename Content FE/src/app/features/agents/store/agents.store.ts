@@ -1,14 +1,17 @@
-import { computed, inject } from '@angular/core';
+import { computed, inject, effect } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { AgentsService } from '../services/agents.service';
-import { AgentSummary, ChatMessage, AgentChatResponse, WorkspaceBootstrap } from '../../../core/models/content-factory.models';
+import { SignalrService } from '../../../core/services/signalr.service';
+import { AgentSummary, ChatMessage, WorkspaceBootstrap } from '../../../core/models/content-factory.models';
 
 type AgentsState = {
   agents: AgentSummary[];
   chatMessages: ChatMessage[];
   chatDraft: string;
   sendingChat: boolean;
+  streamingContent: string;
+  isThinking: boolean;
   activeAgentKey: string | null;
   status: string;
 };
@@ -18,6 +21,8 @@ const initialState: AgentsState = {
   chatMessages: [],
   chatDraft: '',
   sendingChat: false,
+  streamingContent: '',
+  isThinking: false,
   activeAgentKey: null,
   status: 'Ready'
 };
@@ -36,7 +41,25 @@ export const AgentsStore = signalStore(
     }),
     connectedAgentCount: computed(() => store.agents().filter((a) => a.isConnected).length)
   })),
-  withMethods((store, agentsSvc = inject(AgentsService)) => ({
+  withMethods((store, 
+    agentsSvc = inject(AgentsService),
+    signalrSvc = inject(SignalrService)) => {
+    
+    effect(() => {
+      const started = signalrSvc.agentRunStarted();
+      const completed = signalrSvc.agentRunCompleted();
+      const activeKey = store.activeAgentKey();
+
+      if (started && started.agentKey === activeKey) {
+        patchState(store, { isThinking: true, status: 'Agent is executing background task...' });
+      }
+
+      if (completed && completed.agentKey === activeKey) {
+        patchState(store, { isThinking: false, status: 'Task completed.' });
+      }
+    });
+
+    return {
     hydrate(workspace: WorkspaceBootstrap) {
       patchState(store, {
         agents: workspace.agents.agents,
@@ -57,20 +80,42 @@ export const AgentsStore = signalStore(
       const agentKey = store.activeAgentKey();
       if (!message || !agentKey) return;
 
-      patchState(store, { sendingChat: true, status: 'Agent is thinking...' });
-      try {
-        const response = await firstValueFrom(agentsSvc.sendMessage(agentKey, message));
-        patchState(store, { chatDraft: '' });
-        await refreshAll();
-        patchState(store, {
-          sendingChat: false,
-          status: response.blocked ? response.message : 'Agent response received.'
-        });
-      } catch (error) {
-        patchState(store, { sendingChat: false, status: `Agent request failed: ${readError(error)}` });
-      }
+      patchState(store, { 
+        sendingChat: true, 
+        isThinking: true, 
+        streamingContent: '', 
+        chatDraft: '',
+        status: 'Agent is thinking...' 
+      });
+
+      agentsSvc.streamMessage(agentKey, message).subscribe({
+        next: (chunk) => {
+          if (chunk.type === 'delta') {
+            patchState(store, { 
+              isThinking: false, 
+              streamingContent: store.streamingContent() + chunk.content 
+            });
+          } else if (chunk.type === 'done') {
+            patchState(store, { 
+              sendingChat: false, 
+              isThinking: false,
+              streamingContent: '', 
+              status: 'Response received.' 
+            });
+            refreshAll(); // Refresh to sync full message history and stats
+          }
+        },
+        error: (err) => {
+          patchState(store, { 
+            sendingChat: false, 
+            isThinking: false, 
+            status: `Streaming failed: ${readError(err)}` 
+          });
+        }
+      });
     }
-  }))
+  };
+})
 );
 
 function readError(error: unknown): string {

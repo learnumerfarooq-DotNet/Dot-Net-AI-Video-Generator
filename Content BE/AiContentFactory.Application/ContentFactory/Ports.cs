@@ -12,11 +12,11 @@ public interface IMemoryRepository
 
     Task<MemorySuggestion> SuggestAsync(MemorySuggestion suggestion, CancellationToken cancellationToken);
 
-    Task<MemoryEntry?> ApproveSuggestionAsync(Guid suggestionId, string? revisedContent, CancellationToken cancellationToken);
+    Task<MemoryEntry?> ApproveSuggestionAsync(Guid suggestionId, string? revisedContent, DateTimeOffset? expiresAt, CancellationToken cancellationToken);
 
     Task<bool> RejectSuggestionAsync(Guid suggestionId, CancellationToken cancellationToken);
 
-    Task<MemoryEntry> SaveLocalAsync(string agentName, string content, IReadOnlyList<string> tags, CancellationToken cancellationToken);
+    Task<MemoryEntry> SaveLocalAsync(string agentName, string content, IReadOnlyList<string> tags, DateTimeOffset? expiresAt, CancellationToken cancellationToken);
 }
 
 public interface IBacklogRepository

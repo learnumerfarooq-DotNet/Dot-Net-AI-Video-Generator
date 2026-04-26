@@ -1,272 +1,336 @@
- using AiContentFactory.Application.Studio;
- using AiContentFactory.Application.ContentFactory;
- using AiContentFactory.Domain.Memory;
+using AiContentFactory.Application.Studio;
+using AiContentFactory.Application.ContentFactory;
+using AiContentFactory.Domain.Memory;
+using AiContentFactory.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Quartz;
 
 namespace AiContentFactory.Infrastructure.Persistence;
 
-public sealed class StudioWorkspaceStore(
-    StudioDbContext dbContext, 
-    IMemoryRepository memoryRepository,
-    IJsonFileStore jsonStore) : IStudioWorkspaceStore
+public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
 {
+    private readonly StudioDbContext dbContext;
+    private readonly IMemoryRepository memoryRepository;
+    private readonly IJsonFileStore jsonStore;
+    private readonly IMemoryCache cache;
+    private readonly IWorkspaceNotificationService notifications;
+    private readonly ISchedulerFactory schedulerFactory;
+    private readonly IEncryptionService encryption;
+    private readonly IMaskingService masking;
+
+    public StudioWorkspaceStore(
+        StudioDbContext dbContext,
+        IMemoryRepository memoryRepository,
+        IJsonFileStore jsonStore,
+        IMemoryCache cache,
+        IWorkspaceNotificationService notifications,
+        ISchedulerFactory schedulerFactory,
+        IEncryptionService encryption,
+        IMaskingService masking)
+    {
+        this.dbContext = dbContext;
+        this.memoryRepository = memoryRepository;
+        this.jsonStore = jsonStore;
+        this.cache = cache;
+        this.notifications = notifications;
+        this.schedulerFactory = schedulerFactory;
+        this.encryption = encryption;
+        this.masking = masking;
+    }
     private static readonly string[] Palette =
     [
-        "#1769aa",
-        "#0f9d58",
-        "#ef6c00",
-        "#7b61ff",
-        "#b83f6b",
-        "#00838f",
-        "#5d4037",
-        "#607d8b",
-        "#6a1b9a",
-        "#2e7d32",
-        "#ad1457"
+        "#1769aa", "#0f9d58", "#ef6c00", "#7b61ff", "#b83f6b", 
+        "#00838f", "#5d4037", "#607d8b", "#6a1b9a", "#2e7d32", "#ad1457"
     ];
 
     public async Task<WorkspaceBootstrapResponse> GetBootstrapAsync(CancellationToken cancellationToken)
     {
-        var agents = await dbContext.Agents
-            .OrderBy(agent => agent.SortOrder)
-            .ToListAsync(cancellationToken);
-
-        var usages = await dbContext.AgentUsages
-            .OrderBy(usage => usage.CapturedAt)
-            .ToListAsync(cancellationToken);
-
-        var memories = await dbContext.Memories
-            .OrderByDescending(memory => memory.UpdatedAt)
-            .ToListAsync(cancellationToken);
-
-        var videos = await dbContext.Videos
-            .OrderByDescending(video => video.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        var publications = await dbContext.Publications
-            .ToListAsync(cancellationToken);
-
-        var schedules = await dbContext.ScheduleJobs
-            .OrderBy(job => job.Name)
-            .ToListAsync(cancellationToken);
-
-        var runs = await dbContext.AgentRuns
-            .OrderByDescending(run => run.QueuedAt)
-            .ToListAsync(cancellationToken);
-
-        var chatMessages = await dbContext.ChatMessages
-            .OrderByDescending(message => message.CreatedAt)
-            .Take(200)
-            .OrderBy(message => message.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        var recentRunsByAgent = runs
-            .GroupBy(run => run.AgentKey)
-            .ToDictionary(group => group.Key, group => group.Take(2).Select(ToRunDto).ToArray());
-
-        var localHighlightsByAgent = memories
-            .Where(memory => memory.Scope == "Local" && memory.Status == "Approved" && !string.IsNullOrWhiteSpace(memory.AgentKey))
-            .GroupBy(memory => memory.AgentKey!)
-            .ToDictionary(group => group.Key, group => group.Take(2).Select(memory => memory.Title).ToArray());
-
-        var agentDtos = agents
-            .Select(agent => ToAgentSummaryDto(
-                agent,
-                localHighlightsByAgent.GetValueOrDefault(agent.Key) ?? [],
-                recentRunsByAgent.GetValueOrDefault(agent.Key) ?? []))
-            .ToArray();
-
-        var readyVideos = videos.Where(video => video.Stage == "ReadyToUpload").Select(ToVideoDto).ToArray();
-        var backlogVideos = videos.Where(video => video.Stage == "Backlog").Select(ToVideoDto).ToArray();
-        var publishedVideos = videos.Where(video => video.Stage == "Published").Select(ToVideoDto).ToArray();
-
+        Console.WriteLine("[DEBUG] GetBootstrapAsync started");
+        
+        Console.WriteLine("[DEBUG] Fetching agents...");
+        var agents = await dbContext.Agents.AsNoTracking().OrderBy(a => a.SortOrder).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching usages...");
+        var usages = await dbContext.AgentUsages.AsNoTracking().OrderBy(u => u.CapturedAt).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching global memories...");
+        var globalMemories = await dbContext.GlobalMemories.AsNoTracking().OrderByDescending(m => m.UpdatedAt).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching agent memories...");
+        var agentMemories = await dbContext.AgentMemories.AsNoTracking().OrderByDescending(m => m.UpdatedAt).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching videos...");
+        var videos = await dbContext.Videos.AsNoTracking().OrderByDescending(v => v.CreatedAt).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching publications...");
+        var publications = await dbContext.Publications.AsNoTracking().ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching schedules...");
+        var schedules = await dbContext.ScheduleJobs.AsNoTracking().OrderBy(j => j.Name).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching runs...");
+        var runs = await dbContext.AgentRuns.AsNoTracking().OrderByDescending(r => r.QueuedAt).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching chat messages...");
+        var chatMessages = await dbContext.ChatMessages.AsNoTracking().OrderByDescending(m => m.CreatedAt).Take(200).OrderBy(m => m.CreatedAt).ToListAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching connections...");
+        var connections = await dbContext.AgentConnections.AsNoTracking().ToDictionaryAsync(c => c.AgentKey, cancellationToken);
+        
+        Console.WriteLine("[DEBUG] Fetching drive settings...");
         var driveSettings = await GetDriveSettingsAsync(cancellationToken);
+        
+        Console.WriteLine("[DEBUG] All data fetched. Starting mapping...");
+
+        // Efficient lookup maps
+        var recentRunsByAgent = runs.GroupBy(r => r.AgentKey).ToDictionary(g => g.Key, g => g.Take(2).Select(ToRunDto).ToArray());
+        var localHighlightsByAgent = agentMemories.Where(m => m.Status == "Approved").GroupBy(m => m.AgentKey).ToDictionary(g => g.Key, g => g.Take(2).Select(m => m.Title).ToArray());
+
+        var agentDtos = agents.Select(a => ToAgentSummaryDto(a, connections.GetValueOrDefault(a.Key), localHighlightsByAgent.GetValueOrDefault(a.Key) ?? [], recentRunsByAgent.GetValueOrDefault(a.Key) ?? [])).ToArray();
+
+        var readyVideos = videos.Where(v => v.Stage == "ReadyToUpload").Select(ToVideoDto).ToArray();
+        var backlogVideos = videos.Where(v => v.Stage == "Backlog").Select(ToVideoDto).ToArray();
+        var publishedVideos = videos.Where(v => v.Stage == "Published").Select(ToVideoDto).ToArray();
 
         return new WorkspaceBootstrapResponse(
             new DashboardWorkspaceDto(
                 BuildUsageSeries(agents, usages),
                 new MemoryCountsDto(
-                    memories.Count(memory => memory.Scope == "Global" && memory.Status == "Approved"),
-                    memories.Count(memory => memory.Scope == "Local" && memory.Status == "Approved"),
-                    memories.Count(memory => memory.Status == "Pending")),
-                readyVideos,
-                backlogVideos,
+                    globalMemories.Count(m => m.Status == "Approved"),
+                    agentMemories.Count(m => m.Status == "Approved"),
+                    globalMemories.Count(m => m.Status == "Pending") + agentMemories.Count(m => m.Status == "Pending")),
+                readyVideos.Take(5).ToArray(),
+                backlogVideos.Take(5).ToArray(),
                 BuildPublicationWidgets(publications),
                 publishedVideos.Take(6).ToArray(),
                 runs.Take(8).Select(ToRunDto).ToArray()),
-            new AgentWorkspaceDto(
-                agentDtos,
-                chatMessages.Select(ToChatDto).ToArray()),
+            new AgentWorkspaceDto(agentDtos, chatMessages.Select(ToChatDto).ToArray()),
             new MemoryWorkspaceDto(
                 new MemoryCountsDto(
-                    memories.Count(memory => memory.Scope == "Global" && memory.Status == "Approved"),
-                    memories.Count(memory => memory.Scope == "Local" && memory.Status == "Approved"),
-                    memories.Count(memory => memory.Status == "Pending")),
-                memories.Where(memory => memory.Status == "Pending").Select(ToMemoryDto).ToArray(),
-                memories.Where(memory => memory.Scope == "Global" && memory.Status == "Approved").Select(ToMemoryDto).ToArray(),
-                memories.Where(memory => memory.Scope == "Local" && memory.Status == "Approved").Select(ToMemoryDto).ToArray()),
+                    globalMemories.Count(m => m.Status == "Approved"),
+                    agentMemories.Count(m => m.Status == "Approved"),
+                    globalMemories.Count(m => m.Status == "Pending") + agentMemories.Count(m => m.Status == "Pending")),
+                globalMemories.Where(m => m.Status == "Pending").Select(ToMemoryDto).Concat(agentMemories.Where(m => m.Status == "Pending").Select(ToMemoryDto)).ToArray(),
+                globalMemories.Where(m => m.Status == "Approved").Select(ToMemoryDto).ToArray(),
+                agentMemories.Where(m => m.Status == "Approved").Select(ToMemoryDto).ToArray()),
             new SchedulerWorkspaceDto(
-                schedules.Where(job => job.Type == "Manual").Select(ToScheduleDto).ToArray(),
-                schedules.Where(job => job.Type == "DailyPosting").Select(ToScheduleDto).ToArray(),
-                schedules.Where(job => job.Type == "RetryUploads").Select(ToScheduleDto).ToArray(),
-                schedules.Where(job => job.Type == "QueueExecution").Select(ToScheduleDto).ToArray()),
-            new SettingsWorkspaceDto(
-                agents.Select(ToSettingsDto).ToArray(),
-                BuildProviderOptions()),
+                schedules.Where(j => j.Type == "Manual").Select(ToScheduleJobDto).ToArray(),
+                schedules.Where(j => j.Type == "DailyPosting").Select(ToScheduleJobDto).ToArray(),
+                schedules.Where(j => j.Type == "RetryUploads").Select(ToScheduleJobDto).ToArray(),
+                schedules.Where(j => j.Type == "QueueExecution").Select(ToScheduleJobDto).ToArray()),
+            new SettingsWorkspaceDto(agents.Select(a => ToSettingsDto(a, connections.GetValueOrDefault(a.Key))).ToArray(), BuildProviderOptions()),
             driveSettings,
             DateTimeOffset.UtcNow);
     }
 
+
+    public async Task<DashboardWorkspaceDto> GetDashboardSummaryAsync(CancellationToken cancellationToken)
+    {
+        const string cacheKey = "dashboard_summary";
+        if (cache.TryGetValue(cacheKey, out DashboardWorkspaceDto? cachedSummary)) return cachedSummary!;
+
+        var agents = await dbContext.Agents.OrderBy(a => a.SortOrder).ToListAsync(cancellationToken);
+        var usages = await dbContext.AgentUsages.OrderBy(u => u.CapturedAt).ToListAsync(cancellationToken);
+        var globalMemories = await dbContext.GlobalMemories.ToListAsync(cancellationToken);
+        var agentMemories = await dbContext.AgentMemories.ToListAsync(cancellationToken);
+        var publications = await dbContext.Publications.ToListAsync(cancellationToken);
+        var runs = await dbContext.AgentRuns.OrderByDescending(r => r.QueuedAt).Take(8).ToListAsync(cancellationToken);
+        var videos = await dbContext.Videos.ToListAsync(cancellationToken);
+
+        var connections = await dbContext.AgentConnections.ToDictionaryAsync(c => c.AgentKey, cancellationToken);
+
+        var summary = new DashboardWorkspaceDto(
+            BuildUsageSeries(agents, usages),
+            new MemoryCountsDto(
+                globalMemories.Count(m => m.Status == "Approved"),
+                agentMemories.Count(m => m.Status == "Approved"),
+                globalMemories.Count(m => m.Status == "Pending") + agentMemories.Count(m => m.Status == "Pending")),
+            videos.Where(v => v.Stage == "ReadyToUpload").Take(5).Select(ToVideoDto).ToArray(),
+            videos.Where(v => v.Stage == "Backlog").Take(5).Select(ToVideoDto).ToArray(),
+            BuildPublicationWidgets(publications),
+            videos.Where(v => v.Stage == "Published").Take(6).Select(ToVideoDto).ToArray(),
+            runs.Select(ToRunDto).ToArray());
+
+        cache.Set(cacheKey, summary, TimeSpan.FromMinutes(5));
+        return summary;
+    }
+
+    public async Task<PaginatedListDto<VideoItemDto>> GetVideosByStageAsync(string stage, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = dbContext.Videos.Where(v => v.Stage == stage);
+        var total = await query.CountAsync(cancellationToken);
+        
+        var videos = await query
+            .OrderByDescending(v => v.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PaginatedListDto<VideoItemDto>(
+            videos.Select(ToVideoDto).ToArray(),
+            total,
+            page,
+            pageSize);
+    }
+
+    public async Task<PaginatedListDto<AgentRunDto>> GetAgentRunsAsync(int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = dbContext.AgentRuns.AsQueryable();
+        var total = await query.CountAsync(cancellationToken);
+
+        var runs = await query
+            .OrderByDescending(r => r.QueuedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PaginatedListDto<AgentRunDto>(
+            runs.Select(ToRunDto).ToArray(),
+            total,
+            page,
+            pageSize);
+    }
+
     public async Task<AgentConversationContextDto?> GetAgentContextAsync(string agentKey, CancellationToken cancellationToken)
     {
-        var agent = await dbContext.Agents.FirstOrDefaultAsync(item => item.Key == agentKey, cancellationToken);
-        if (agent is null)
-        {
-            return null;
-        }
+        var agent = await dbContext.Agents.FirstOrDefaultAsync(a => a.Key == agentKey, cancellationToken);
+        if (agent is null) return null;
 
-        var messages = await dbContext.ChatMessages
-            .Where(message => message.AgentKey == agentKey)
-            .OrderByDescending(message => message.CreatedAt)
-            .Take(20)
-            .OrderBy(message => message.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var messages = await dbContext.ChatMessages.Where(m => m.AgentKey == agentKey).OrderByDescending(m => m.CreatedAt).Take(20).OrderBy(m => m.CreatedAt).ToListAsync(cancellationToken);
+        var globalMemories = await dbContext.GlobalMemories.Where(m => m.Status == "Approved").Take(6).ToListAsync(cancellationToken);
+        
+        var agentMemories = agentKey == "main-brain" 
+            ? await dbContext.AgentMemories.Where(m => m.Status == "Approved").Take(10).ToListAsync(cancellationToken)
+            : await dbContext.AgentMemories.Where(m => m.AgentKey == agentKey && m.Status == "Approved").Take(4).ToListAsync(cancellationToken);
+        var videos = await dbContext.Videos.OrderByDescending(v => v.CreatedAt).ToListAsync(cancellationToken);
+        var runs = await dbContext.AgentRuns.Where(r => r.AgentKey == agentKey).OrderByDescending(r => r.QueuedAt).Take(2).ToListAsync(cancellationToken);
 
-        var memories = await dbContext.Memories
-            .Where(memory => memory.Status == "Approved")
-            .OrderByDescending(memory => memory.UpdatedAt)
-            .ToListAsync(cancellationToken);
-
-        var videos = await dbContext.Videos
-            .OrderByDescending(video => video.CreatedAt)
-            .ToListAsync(cancellationToken);
-
-        var runs = await dbContext.AgentRuns
-            .Where(run => run.AgentKey == agentKey)
-            .OrderByDescending(run => run.QueuedAt)
-            .Take(2)
-            .ToListAsync(cancellationToken);
+        var conn = await dbContext.AgentConnections.FirstOrDefaultAsync(c => c.AgentKey == agentKey, cancellationToken);
 
         return new AgentConversationContextDto(
-            ToAgentSummaryDto(agent,
-                memories.Where(memory => memory.Scope == "Local" && memory.AgentKey == agentKey).Select(memory => memory.Title).Take(2).ToArray(),
-                runs.Select(ToRunDto).ToArray()),
+            ToAgentSummaryDto(agent, conn, agentMemories.Take(2).Select(m => m.Title).ToArray(), runs.Select(ToRunDto).ToArray()),
             messages.Select(ToChatDto).ToArray(),
-            memories.Where(memory => memory.Scope == "Global").Take(4).Select(ToMemoryDto).ToArray(),
-            memories.Where(memory => memory.Scope == "Local" && memory.AgentKey == agentKey).Take(4).Select(ToMemoryDto).ToArray(),
-            videos.Where(video => video.Stage == "Backlog").Take(4).Select(ToVideoDto).ToArray(),
-            videos.Where(video => video.Stage == "ReadyToUpload").Take(4).Select(ToVideoDto).ToArray());
+            globalMemories.Select(ToMemoryDto).ToArray(),
+            agentMemories.Select(ToMemoryDto).ToArray(),
+            videos.Where(v => v.Stage == "Backlog").Take(4).Select(ToVideoDto).ToArray(),
+            videos.Where(v => v.Stage == "ReadyToUpload").Take(4).Select(ToVideoDto).ToArray());
     }
 
     public async Task<IReadOnlyList<ChatMessageDto>> SaveAgentExchangeAsync(
-        string agentKey,
-        string userMessage,
-        string assistantMessage,
+        string agentKey, 
+        string userMessage, 
+        string assistantMessage, 
+        int tokensIn, 
+        int tokensOut, 
+        decimal cost, 
+        int durationMs, 
         CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
+        dbContext.ChatMessages.Add(new StudioChatMessageEntity { Id = Guid.NewGuid(), AgentKey = agentKey, Role = "user", Content = userMessage, CreatedAt = now });
+        dbContext.ChatMessages.Add(new StudioChatMessageEntity { Id = Guid.NewGuid(), AgentKey = agentKey, Role = "assistant", Content = assistantMessage, CreatedAt = now.AddSeconds(1) });
+        dbContext.AgentUsages.Add(new StudioAgentUsageEntity { Id = Guid.NewGuid(), AgentKey = agentKey, CapturedAt = now, RequestCount = 1, TokensIn = tokensIn, TokensOut = tokensOut, CostUsd = cost, DurationMs = durationMs });
+        var runId = Guid.NewGuid();
+        dbContext.AgentRuns.Add(new StudioAgentRunEntity { Id = runId, AgentKey = agentKey, Title = "Interactive chat", Status = "Succeeded", Summary = "Chat guidance", QueuedAt = now, CompletedAt = now.AddSeconds(2) });
 
-        dbContext.ChatMessages.Add(new StudioChatMessageEntity
-        {
-            Id = Guid.NewGuid(),
-            AgentKey = agentKey,
-            Role = "user",
-            Content = userMessage,
-            CreatedAt = now
-        });
-
-        dbContext.ChatMessages.Add(new StudioChatMessageEntity
-        {
-            Id = Guid.NewGuid(),
-            AgentKey = agentKey,
-            Role = "assistant",
-            Content = assistantMessage,
-            CreatedAt = now.AddSeconds(1)
-        });
-
-        dbContext.AgentUsages.Add(new StudioAgentUsageEntity
-        {
-            Id = Guid.NewGuid(),
-            AgentKey = agentKey,
-            CapturedAt = now,
-            RequestCount = 1,
-            TokensIn = Math.Max(150, userMessage.Length * 3),
-            TokensOut = Math.Max(240, assistantMessage.Length * 2),
-            CostUsd = 0.19m,
-            DurationMs = 1200
-        });
-
-        dbContext.AgentRuns.Add(new StudioAgentRunEntity
-        {
-            Id = Guid.NewGuid(),
-            AgentKey = agentKey,
-            Title = "Interactive chat guidance",
-            Status = "Succeeded",
-            Summary = "Agent reviewed workspace context and returned a conversation response.",
-            QueuedAt = now,
-            CompletedAt = now.AddSeconds(2)
-        });
-
-        var agent = await dbContext.Agents.FirstOrDefaultAsync(item => item.Key == agentKey, cancellationToken);
-        if (agent is not null)
-        {
-            agent.LastRunAt = now;
-            agent.UpdatedAt = now;
-            agent.Status = agent.IsConnected ? "Connected" : "Connect API first";
-        }
+        var agent = await dbContext.Agents.FirstOrDefaultAsync(a => a.Key == agentKey, cancellationToken);
+        if (agent is not null) { agent.LastRunAt = now; agent.UpdatedAt = now; }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await notifications.NotifyAgentRunCompletedAsync(runId, agentKey, "Succeeded", cancellationToken);
+        
+        cache.Remove("dashboard_summary");
+        cache.Remove($"budget_{agentKey}");
 
-        return await dbContext.ChatMessages
-            .Where(message => message.AgentKey == agentKey)
-            .OrderByDescending(message => message.CreatedAt)
+        var messages = await dbContext.ChatMessages
+            .Where(m => m.AgentKey == agentKey)
+            .OrderByDescending(m => m.CreatedAt)
             .Take(20)
-            .OrderBy(message => message.CreatedAt)
-            .Select(message => ToChatDto(message))
+            .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        return messages.Select(ToChatDto).ToArray();
     }
 
-    public async Task<MemoryRecordDto?> ReviewMemoryAsync(
-        Guid id,
-        string status,
-        ReviewMemoryRequest request,
-        CancellationToken cancellationToken)
+    public async Task<bool> IsAgentWithinBudgetAsync(string agentKey, CancellationToken cancellationToken)
     {
-        var memory = await dbContext.Memories.FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (memory is null)
+        var cacheKey = $"budget_{agentKey}";
+        if (cache.TryGetValue(cacheKey, out bool withinBudget)) return withinBudget;
+
+        var agent = await dbContext.Agents.FirstOrDefaultAsync(a => a.Key == agentKey, cancellationToken);
+        if (agent == null) return true;
+
+        if (agent.DailyTokenBudget <= 0 && agent.MonthlyCostBudget <= 0) return true;
+
+        var now = DateTimeOffset.UtcNow;
+        var startOfDay = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
+        var startOfMonth = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero);
+
+        if (agent.DailyTokenBudget > 0)
         {
-            return null;
+            var tokensToday = await dbContext.AgentUsages
+                .Where(u => u.AgentKey == agentKey && u.CapturedAt >= startOfDay)
+                .SumAsync(u => u.TokensIn + u.TokensOut, cancellationToken);
+            
+            if (tokensToday >= agent.DailyTokenBudget)
+            {
+                cache.Set(cacheKey, false, TimeSpan.FromMinutes(10));
+                return false;
+            }
         }
 
-        memory.Title = string.IsNullOrWhiteSpace(request.RevisedTitle) ? memory.Title : request.RevisedTitle;
-        memory.Content = string.IsNullOrWhiteSpace(request.RevisedContent) ? memory.Content : request.RevisedContent;
-        memory.Status = status;
-        memory.UpdatedAt = DateTimeOffset.UtcNow;
-        memory.ApprovedAt = status == "Approved" ? DateTimeOffset.UtcNow : null;
-        
-        // Self-Improving System: generate a memory improvement suggestion when a memory is approved
-        if (status == "Approved" && memory != null)
+        if (agent.MonthlyCostBudget > 0)
         {
-            var now = DateTimeOffset.UtcNow;
-            var preview = memory.Content != null && memory.Content.Length > 256 ? memory.Content.Substring(0, 256) : memory.Content ?? string.Empty;
-            var improvementContent = $"Auto-improvement for memory '{memory.Title}': {preview}...";
-            var scopeEnum = memory.Scope == "Global"
-                ? AiContentFactory.Domain.Memory.MemoryScope.Global
-                : AiContentFactory.Domain.Memory.MemoryScope.Local;
-            var improvement = new AiContentFactory.Domain.Memory.MemorySuggestion(
-                Guid.NewGuid(),
-                scopeEnum,
-                memory.AgentKey,
-                improvementContent,
-                "Auto-improvement suggestion generated on approval",
-                AiContentFactory.Domain.Memory.MemorySuggestionStatus.Pending,
-                now
-            );
-            await memoryRepository.SuggestAsync(improvement, cancellationToken);
+            var costThisMonth = await dbContext.AgentUsages
+                .Where(u => u.AgentKey == agentKey && u.CapturedAt >= startOfMonth)
+                .SumAsync(u => u.CostUsd, cancellationToken);
+
+            if (costThisMonth >= agent.MonthlyCostBudget)
+            {
+                cache.Set(cacheKey, false, TimeSpan.FromMinutes(10));
+                return false;
+            }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return ToMemoryDto(memory);
+        cache.Set(cacheKey, true, TimeSpan.FromMinutes(5));
+        return true;
+    }
+
+    public async Task<MemoryRecordDto?> ReviewMemoryAsync(Guid id, string status, ReviewMemoryRequest request, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        DateTimeOffset? expiresAt = request.TtlDays.HasValue ? now.AddDays(request.TtlDays.Value) : null;
+
+        // Try Global first
+        var global = await dbContext.GlobalMemories.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+        if (global != null)
+        {
+            global.Title = request.RevisedTitle ?? global.Title;
+            global.Content = request.RevisedContent ?? global.Content;
+            global.Status = status;
+            global.UpdatedAt = now;
+            global.ApprovedAt = status == "Approved" ? now : null;
+            global.ExpiresAt = expiresAt;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ToMemoryDto(global);
+        }
+
+        // Try Agent second
+        var agentMem = await dbContext.AgentMemories.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+        if (agentMem != null)
+        {
+            agentMem.Title = request.RevisedTitle ?? agentMem.Title;
+            agentMem.Content = request.RevisedContent ?? agentMem.Content;
+            agentMem.Status = status;
+            agentMem.UpdatedAt = now;
+            agentMem.ApprovedAt = status == "Approved" ? now : null;
+            agentMem.ExpiresAt = expiresAt;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return ToMemoryDto(agentMem);
+        }
+
+        return null;
     }
 
     public async Task<IReadOnlyList<MemorySuggestionDto>> GetPendingMemorySuggestionsAsync(CancellationToken cancellationToken)
@@ -275,307 +339,205 @@ public sealed class StudioWorkspaceStore(
         return suggestions.Select(ToMemorySuggestionDto).ToArray();
     }
 
-    // ToMemorySuggestionDto moved to the later block for a single definition
-
-    public async Task<VideoItemDto?> UpdateVideoStageAsync(
-        Guid id,
-        UpdateVideoStageRequest request,
-        CancellationToken cancellationToken)
+    public async Task<VideoItemDto?> UpdateVideoStageAsync(Guid id, UpdateVideoStageRequest request, CancellationToken cancellationToken)
     {
-        var video = await dbContext.Videos.FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (video is null)
-        {
-            return null;
-        }
+        var video = await dbContext.Videos.FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
+        if (video is null) return null;
 
         video.Stage = request.Stage;
         video.UpdatedAt = DateTimeOffset.UtcNow;
         video.PublishedAt = request.Stage == "Published" ? DateTimeOffset.UtcNow : video.PublishedAt;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToVideoDto(video);
+        var result = ToVideoDto(video);
+        await notifications.NotifyVideoStageChangedAsync(result.Id, result.Stage, cancellationToken);
+        cache.Remove("dashboard_summary");
+        return result;
     }
 
-    public async Task<ScheduleJobDto> CreateManualScheduleAsync(
-        CreateManualScheduleRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ScheduleJobDto> CreateManualScheduleAsync(CreateManualScheduleRequest request, CancellationToken cancellationToken)
     {
-        var job = new StudioScheduleJobEntity
-        {
-            Id = Guid.NewGuid(),
-            Name = request.Name,
-            Type = "Manual",
-            AgentKey = request.AgentKey,
-            IsEnabled = request.IsEnabled,
-            Status = request.IsEnabled ? "Queued" : "Disabled",
-            Trigger = request.Trigger,
-            QueueMode = "Manual",
-            NextRunAt = request.IsEnabled ? DateTimeOffset.UtcNow.AddHours(2) : null,
-            LastRunAt = null,
-            Notes = request.Notes,
-            CreatedAt = DateTimeOffset.UtcNow
+        var job = new StudioScheduleJobEntity 
+        { 
+            Id = Guid.NewGuid(), 
+            Name = request.Name, 
+            Type = "Manual", 
+            AgentKey = request.AgentKey, 
+            IsEnabled = request.IsEnabled, 
+            Status = request.IsEnabled ? "Queued" : "Disabled", 
+            Trigger = request.Trigger, 
+            QueueMode = "Manual", 
+            NextRunAt = request.IsEnabled ? DateTimeOffset.UtcNow.AddSeconds(10) : null, 
+            CreatedAt = DateTimeOffset.UtcNow 
         };
 
         dbContext.ScheduleJobs.Add(job);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return ToScheduleDto(job);
-    }
-
-    public async Task<AgentSettingsDto?> SaveAgentSettingsAsync(
-        string agentKey,
-        SaveAgentSettingsRequest request,
-        CancellationToken cancellationToken)
-    {
-        var agent = await dbContext.Agents.FirstOrDefaultAsync(item => item.Key == agentKey, cancellationToken);
-        if (agent is null)
+        if (job.IsEnabled)
         {
-            return null;
+            var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
+            
+            var quartzJob = JobBuilder.Create<AiContentFactory.Infrastructure.Scheduler.AgentJob>()
+                .WithIdentity($"ManualJob-{job.Id}", "Agents")
+                .UsingJobData("JobId", job.Id.ToString())
+                .Build();
+
+            var quartzTrigger = TriggerBuilder.Create()
+                .WithIdentity($"ManualTrigger-{job.Id}", "Agents")
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(5)) // Start almost immediately for manual
+                .Build();
+
+            await scheduler.ScheduleJob(quartzJob, quartzTrigger, cancellationToken);
         }
 
-        agent.ProviderName = request.ProviderName.Trim();
-        agent.ModelName = request.ModelName.Trim();
-        agent.BaseUrl = request.BaseUrl.Trim();
-        agent.ApiKey = request.ApiKey.Trim();
-            agent.ClientId = request.ClientId.Trim();
-            agent.ClientSecret = request.ClientSecret.Trim();
-        agent.RefreshToken = request.RefreshToken.Trim();
-        agent.SourceVideoPath = request.SourceVideoPath.Trim();
-        agent.StorageFolderId = request.StorageFolderId.Trim();
-        agent.StorageFolderName = request.StorageFolderName.Trim();
-        agent.StorageFolderPath = request.StorageFolderPath.Trim();
-        agent.StorageFolderUrl = request.StorageFolderUrl.Trim();
-        agent.UseOpenRouter = request.UseOpenRouter && agent.SupportsOpenRouter;
-        agent.OpenRouterModel = request.OpenRouterModel.Trim();
-        agent.OpenRouterApiKey = request.OpenRouterApiKey.Trim();
-        agent.Notes = request.Notes.Trim();
-        agent.IsConnected = DetermineConnection(agent);
-        agent.Status = agent.IsConnected ? "Connected" : "Connect API first";
+        return ToScheduleJobDto(job);
+    }
+
+    public async Task<AgentSettingsDto?> SaveAgentSettingsAsync(string agentKey, SaveAgentSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var agent = await dbContext.Agents.FirstOrDefaultAsync(a => a.Key == agentKey, cancellationToken);
+        if (agent is null) return null;
+
+        var conn = await dbContext.AgentConnections.FirstOrDefaultAsync(c => c.AgentKey == agentKey, cancellationToken);
+        if (conn == null)
+        {
+            conn = new StudioAgentConnectionEntity { Id = Guid.NewGuid(), AgentKey = agentKey };
+            dbContext.AgentConnections.Add(conn);
+        }
+
+        conn.ProviderName = request.ProviderName; 
+        conn.ModelName = request.ModelName; 
+        if (!IsMasked(request.ApiKey)) conn.ApiKey = encryption.Encrypt(request.ApiKey);
+        conn.ClientId = request.ClientId; 
+        if (!IsMasked(request.ClientSecret)) conn.ClientSecret = encryption.Encrypt(request.ClientSecret); 
+        conn.RefreshToken = request.RefreshToken;
+        conn.UseOpenRouter = request.UseOpenRouter;
+        conn.OpenRouterModel = request.OpenRouterModel;
+        if (!IsMasked(request.OpenRouterApiKey)) conn.OpenRouterApiKey = encryption.Encrypt(request.OpenRouterApiKey);
+        conn.BaseUrl = request.BaseUrl;
+        conn.UpdatedAt = DateTimeOffset.UtcNow;
+
         agent.UpdatedAt = DateTimeOffset.UtcNow;
+        agent.IsConnected = !string.IsNullOrEmpty(request.ApiKey) || 
+                           !string.IsNullOrEmpty(request.RefreshToken) || 
+                           (request.UseOpenRouter && !string.IsNullOrEmpty(request.OpenRouterApiKey));
+        agent.Status = agent.IsConnected ? "Connected" : "Connect API first";
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToSettingsDto(agent);
+        return await GetAgentSettingsAsync(agentKey, cancellationToken);
     }
 
     public async Task<AgentSettingsDto?> GetAgentSettingsAsync(string agentKey, CancellationToken cancellationToken)
     {
-        var agent = await dbContext.Agents.FirstOrDefaultAsync(item => item.Key == agentKey, cancellationToken);
-        return agent is null ? null : ToSettingsDto(agent);
+        var agent = await dbContext.Agents.FirstOrDefaultAsync(a => a.Key == agentKey, cancellationToken);
+        if (agent == null) return null;
+
+        var conn = await dbContext.AgentConnections.FirstOrDefaultAsync(c => c.AgentKey == agentKey, cancellationToken);
+        
+        return new AgentSettingsDto(
+            agent.Key, 
+            agent.Name, 
+            agent.Category, 
+            agent.RequiresConnection, 
+            agent.SupportsOpenRouter, 
+            agent.IsConnected, 
+            conn?.ProviderName ?? string.Empty, 
+            conn?.ModelName ?? string.Empty, 
+            conn?.BaseUrl ?? string.Empty, 
+            encryption.Decrypt(conn?.ApiKey ?? string.Empty), 
+            conn?.ClientId ?? string.Empty, 
+            encryption.Decrypt(conn?.ClientSecret ?? string.Empty), 
+            conn?.RefreshToken ?? string.Empty, 
+            agent.SourceVideoPath, 
+            agent.StorageFolderId, 
+            agent.StorageFolderName, 
+            agent.StorageFolderPath, 
+            agent.StorageFolderUrl, 
+            conn?.UseOpenRouter ?? false, 
+            conn?.OpenRouterModel ?? string.Empty, 
+            encryption.Decrypt(conn?.OpenRouterApiKey ?? string.Empty), 
+            agent.Notes, 
+            agent.UpdatedAt);
+    }
+
+    public async Task<VideoItemDto?> LinkVideoToAssetAsync(Guid id, string driveFileId, CancellationToken cancellationToken)
+    {
+        var video = await dbContext.Videos.FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
+        if (video == null) return null;
+
+        video.DriveFileId = driveFileId;
+        video.UpdatedAt = DateTimeOffset.UtcNow;
+        
+        await dbContext.SaveChangesAsync(cancellationToken);
+        cache.Remove("dashboard_summary");
+        
+        var dto = ToVideoDto(video);
+        await notifications.NotifyVideoStageChangedAsync(id, video.Stage, cancellationToken);
+        return dto;
     }
 
     public async Task<DriveSettingsDto> SaveDriveSettingsAsync(SaveDriveSettingsRequest request, CancellationToken cancellationToken)
     {
-        var settings = new DriveSettingsDto(request.ClientId, request.ClientSecret, request.RefreshToken, request.RootFolderId);
-        await jsonStore.WriteAsync("drive.config.json", settings, cancellationToken);
-        return settings;
+        var config = await dbContext.DriveConfigs.FirstOrDefaultAsync(cancellationToken);
+        if (config == null)
+        {
+            config = new StudioDriveConfigEntity { Id = Guid.NewGuid() };
+            dbContext.DriveConfigs.Add(config);
+        }
+
+        config.ClientId = request.ClientId;
+        config.ClientSecret = encryption.Encrypt(request.ClientSecret);
+        config.RefreshToken = request.RefreshToken;
+        config.RootFolderId = request.RootFolderId;
+        config.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new DriveSettingsDto(config.ClientId, encryption.Decrypt(config.ClientSecret), config.RefreshToken, config.RootFolderId);
     }
 
-    public Task<DriveSettingsDto> GetDriveSettingsAsync(CancellationToken cancellationToken)
-        => jsonStore.ReadAsync("drive.config.json", new DriveSettingsDto("", "", "", ""), cancellationToken);
-
-    private static bool DetermineConnection(StudioAgentEntity agent)
+    public async Task<DriveSettingsDto> GetDriveSettingsAsync(CancellationToken cancellationToken)
     {
-        if (!agent.RequiresConnection)
-        {
-            return true;
-        }
-
-        if (agent.UseOpenRouter && !string.IsNullOrWhiteSpace(agent.OpenRouterApiKey))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(agent.ApiKey))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(agent.ClientId) && !string.IsNullOrWhiteSpace(agent.ClientSecret))
-        {
-            return true;
-        }
-
-        return !string.IsNullOrWhiteSpace(agent.RefreshToken);
+        var config = await dbContext.DriveConfigs.FirstOrDefaultAsync(cancellationToken);
+        if (config == null) return new DriveSettingsDto("", "", "", "root");
+        return new DriveSettingsDto(config.ClientId, encryption.Decrypt(config.ClientSecret), config.RefreshToken, config.RootFolderId);
     }
 
-    private static UsageSeriesDto[] BuildUsageSeries(
-        IReadOnlyList<StudioAgentEntity> agents,
-        IReadOnlyList<StudioAgentUsageEntity> usages)
+    private static UsageSeriesDto[] BuildUsageSeries(IReadOnlyList<StudioAgentEntity> agents, IReadOnlyList<StudioAgentUsageEntity> usages)
     {
-        return agents.Select((agent, index) =>
-            new UsageSeriesDto(
-                agent.Key,
-                agent.Name,
-                Palette[index % Palette.Length],
-                usages.Where(usage => usage.AgentKey == agent.Key)
-                    .OrderBy(usage => usage.CapturedAt)
-                    .TakeLast(7)
-                    .Select(usage => new UsagePointDto(
-                        usage.CapturedAt,
-                        usage.RequestCount,
-                        usage.TokensIn,
-                        usage.TokensOut,
-                        usage.CostUsd,
-                        usage.DurationMs))
-                    .ToArray()))
-            .ToArray();
+        var usageByAgent = usages.GroupBy(u => u.AgentKey).ToDictionary(g => g.Key, g => g.ToList());
+        return agents.Select((agent, index) => {
+            var agentUsages = usageByAgent.GetValueOrDefault(agent.Key) ?? [];
+            return new UsageSeriesDto(
+                agent.Key, 
+                agent.Name, 
+                Palette[index % Palette.Length], 
+                agentUsages.TakeLast(7).Select(u => new UsagePointDto(u.CapturedAt, u.RequestCount, u.TokensIn, u.TokensOut, u.CostUsd, u.DurationMs)).ToArray());
+        }).ToArray();
     }
 
     private static PlatformPublicationWidgetDto[] BuildPublicationWidgets(IReadOnlyList<StudioPublicationEntity> publications)
     {
-        return publications
-            .GroupBy(publication => publication.Platform)
-            .OrderBy(group => group.Key)
-            .Select(group => new PlatformPublicationWidgetDto(
-                group.Key,
-                group.Count(item => item.Status == "Published"),
-                group.Count(item => item.Status == "Scheduled"),
-                group.Count(item => item.Status == "Failed"),
-                group.Where(item => item.Status == "Published").Sum(item => item.Views)))
-            .ToArray();
+        return publications.GroupBy(p => p.Platform).OrderBy(g => g.Key).Select(g => new PlatformPublicationWidgetDto(g.Key, g.Count(i => i.Status == "Published"), g.Count(i => i.Status == "Scheduled"), g.Count(i => i.Status == "Failed"), g.Where(i => i.Status == "Published").Sum(i => i.Views))).ToArray();
     }
 
-    private static ProviderOptionDto[] BuildProviderOptions()
-    {
-        return
-        [
-            new ProviderOptionDto("Brain", ["OpenAI", "Claude", "Gemini", "OpenRouter"]),
-            new ProviderOptionDto("Discovery", ["OpenAI", "Gemini", "OpenRouter"]),
-            new ProviderOptionDto("Writing", ["OpenAI", "Claude", "Gemini", "OpenRouter"]),
-            new ProviderOptionDto("Video", ["Runway", "Pika", "Luma", "Manual"]),
-            new ProviderOptionDto("Shorts", ["OpenAI", "Gemini", "OpenRouter"]),
-            new ProviderOptionDto("Publishing", ["YouTube", "TikTok", "Instagram", "Facebook", "LinkedIn", "DryRun"])
-        ];
-    }
+    private static ProviderOptionDto[] BuildProviderOptions() => [new ProviderOptionDto("Brain", ["OpenAI", "Claude", "Gemini", "OpenRouter"]), new ProviderOptionDto("Video", ["Runway", "Pika", "Luma", "Manual"])];
 
-    private static AgentSummaryDto ToAgentSummaryDto(
-        StudioAgentEntity agent,
-        IReadOnlyList<string> localMemoryHighlights,
-        IReadOnlyList<AgentRunDto> recentRuns)
-    {
-        return new AgentSummaryDto(
-            agent.Key,
-            agent.Name,
-            agent.Description,
-            agent.Category,
-            agent.RequiresConnection,
-            agent.SupportsOpenRouter,
-            agent.IsConnected,
-            agent.ProviderName,
-            agent.ModelName,
-            agent.Status,
-            agent.CapabilitySummary,
-            agent.LastRunAt,
-            localMemoryHighlights,
-            recentRuns);
-    }
+    private static bool IsMasked(string? value) => value != null && value.Contains("...");
 
-    private static AgentSettingsDto ToSettingsDto(StudioAgentEntity agent)
-    {
-        return new AgentSettingsDto(
-            agent.Key,
-            agent.Name,
-            agent.Category,
-            agent.RequiresConnection,
-            agent.SupportsOpenRouter,
-            agent.IsConnected,
-            agent.ProviderName,
-            agent.ModelName,
-            agent.BaseUrl,
-            agent.ApiKey,
-            agent.ClientId,
-            agent.ClientSecret,
-            agent.RefreshToken,
-            agent.SourceVideoPath,
-            agent.StorageFolderId,
-            agent.StorageFolderName,
-            agent.StorageFolderPath,
-            agent.StorageFolderUrl,
-            agent.UseOpenRouter,
-            agent.OpenRouterModel,
-            agent.OpenRouterApiKey,
-            agent.Notes,
-            agent.UpdatedAt);
-    }
-
-    private static MemoryRecordDto ToMemoryDto(StudioMemoryEntity memory)
-    {
-        return new MemoryRecordDto(
-            memory.Id,
-            memory.Scope,
-            memory.AgentKey,
-            memory.Title,
-            memory.Content,
-            memory.Status,
-            memory.Tags,
-            memory.CreatedAt,
-            memory.UpdatedAt,
-            memory.ApprovedAt);
-    }
-
-    private static VideoItemDto ToVideoDto(StudioVideoEntity video)
-    {
-        return new VideoItemDto(
-            video.Id,
-            video.Title,
-            video.Topic,
-            video.Format,
-            video.Stage,
-            video.StorageFolder,
-            video.DriveFileId,
-            video.SourceAgentKey,
-            video.Platforms,
-            video.CreatedAt,
-            video.PublishedAt);
-    }
-
-    private static MemorySuggestionDto ToMemorySuggestionDto(MemorySuggestion s)
-    {
-        return new MemorySuggestionDto(
-            s.Id,
-            s.Scope.ToString(),
-            s.AgentName,
-            s.Content,
-            s.Reason,
-            s.Status.ToString(),
-            s.CreatedAt);
-    }
-
-    private static ScheduleJobDto ToScheduleDto(StudioScheduleJobEntity job)
-    {
-        return new ScheduleJobDto(
-            job.Id,
-            job.Name,
-            job.Type,
-            job.AgentKey,
-            job.IsEnabled,
-            job.Status,
-            job.Trigger,
-            job.QueueMode,
-            job.NextRunAt,
-            job.LastRunAt,
-            job.Notes);
-    }
-
-    private static ChatMessageDto ToChatDto(StudioChatMessageEntity message)
-    {
-        return new ChatMessageDto(
-            message.Id,
-            message.AgentKey,
-            message.Role,
-            message.Content,
-            message.CreatedAt);
-    }
-
-    private static AgentRunDto ToRunDto(StudioAgentRunEntity run)
-    {
-        return new AgentRunDto(
-            run.Id,
-            run.AgentKey,
-            run.Title,
-            run.Status,
-            run.Summary,
-            run.QueuedAt,
-            run.CompletedAt);
-    }
+    private static AgentSummaryDto ToAgentSummaryDto(StudioAgentEntity a, StudioAgentConnectionEntity? c, IReadOnlyList<string> h, IReadOnlyList<AgentRunDto> r) => new AgentSummaryDto(a.Key, a.Name, a.Description, a.Category, a.RequiresConnection, a.SupportsOpenRouter, a.IsConnected, c?.ProviderName ?? string.Empty, c?.ModelName ?? string.Empty, a.Status, a.CapabilitySummary, a.LastRunAt, h, r);
+    private AgentSettingsDto ToSettingsDto(StudioAgentEntity a, StudioAgentConnectionEntity? c) => new AgentSettingsDto(
+        a.Key, a.Name, a.Category, a.RequiresConnection, a.SupportsOpenRouter, a.IsConnected, 
+        c?.ProviderName ?? string.Empty, c?.ModelName ?? string.Empty, c?.BaseUrl ?? string.Empty, masking.Mask(encryption.Decrypt(c?.ApiKey ?? string.Empty)), 
+        c?.ClientId ?? string.Empty, masking.Mask(encryption.Decrypt(c?.ClientSecret ?? string.Empty)), masking.Mask(c?.RefreshToken ?? string.Empty, 2, 2), 
+        a.SourceVideoPath, a.StorageFolderId, a.StorageFolderName, a.StorageFolderPath, a.StorageFolderUrl, 
+        c?.UseOpenRouter ?? false, c?.OpenRouterModel ?? string.Empty, masking.Mask(encryption.Decrypt(c?.OpenRouterApiKey ?? string.Empty)), 
+        a.Notes, a.UpdatedAt);
+    private static MemoryRecordDto ToMemoryDto(StudioGlobalMemoryEntity m) => new MemoryRecordDto(m.Id, "Global", null, m.Title, m.Content, m.Status, m.Tags, m.CreatedAt, m.UpdatedAt, m.ApprovedAt, m.ExpiresAt);
+    private static MemoryRecordDto ToMemoryDto(StudioAgentMemoryEntity m) => new MemoryRecordDto(m.Id, "Local", m.AgentKey, m.Title, m.Content, m.Status, m.Tags, m.CreatedAt, m.UpdatedAt, m.ApprovedAt, m.ExpiresAt);
+    private static VideoItemDto ToVideoDto(StudioVideoEntity v) => new VideoItemDto(v.Id, v.Title, v.Topic, v.Format, v.Stage, v.StorageFolder, v.DriveFileId, v.SourceAgentKey, v.Platforms, v.CreatedAt, v.PublishedAt);
+    private static MemorySuggestionDto ToMemorySuggestionDto(MemorySuggestion s) => new MemorySuggestionDto(s.Id, s.Scope.ToString(), s.AgentName, s.Content, s.Reason, s.Status.ToString(), s.CreatedAt);
+    private static ScheduleJobDto ToScheduleJobDto(StudioScheduleJobEntity j) => new ScheduleJobDto(j.Id, j.Name, j.Type, j.AgentKey, j.IsEnabled, j.Status, j.Trigger, j.QueueMode, j.NextRunAt, j.LastRunAt, j.Notes);
+    private static ChatMessageDto ToChatDto(StudioChatMessageEntity m) => new ChatMessageDto(m.Id, m.AgentKey, m.Role, m.Content, m.CreatedAt);
+    private static AgentRunDto ToRunDto(StudioAgentRunEntity r) => new AgentRunDto(r.Id, r.AgentKey, r.Title, r.Status, r.Summary, r.QueuedAt, r.CompletedAt, r.AttemptCount, r.MaxRetries);
 }

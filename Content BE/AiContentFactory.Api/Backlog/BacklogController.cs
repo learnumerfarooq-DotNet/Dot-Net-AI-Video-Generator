@@ -22,4 +22,17 @@ public sealed class BacklogController(IStudioWorkspaceFacade facade) : Controlle
         var video = await facade.UpdateVideoStageAsync(id, request, cancellationToken);
         return video is null ? NotFound() : Ok(video);
     }
+
+    /// <summary>Links a video to a Google Drive asset.</summary>
+    [HttpPost("{id:guid}/link")]
+    [ProducesResponseType<VideoItemDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LinkAsset(
+        [FromRoute] Guid id,
+        [FromQuery] string driveFileId,
+        CancellationToken cancellationToken)
+    {
+        var video = await facade.LinkVideoToAssetAsync(id, driveFileId, cancellationToken);
+        return video is null ? NotFound() : Ok(video);
+    }
 }

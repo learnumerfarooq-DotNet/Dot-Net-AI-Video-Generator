@@ -1,0 +1,62 @@
+<div class="settings-container">
+  <header class="settings-header">
+    <div class="header-content">
+      <h1>Platform Settings</h1>
+      <p class="subtitle">Configure your AI agents and storage providers</p>
+    </div>
+    
+    <nav class="settings-tabs">
+      <button 
+        [class.active]="activeTab === 'agents'" 
+        (click)="setTab('agents')">
+        <i class="fas fa-robot"></i> AI Agents
+      </button>
+      <button 
+        [class.active]="activeTab === 'storage'" 
+        (click)="setTab('storage')">
+        <i class="fas fa-hdd"></i> Storage & Drive
+      </button>
+    </nav>
+  </header>
+
+  <main class="settings-content">
+    <!-- AGENTS TAB -->
+    <div *ngIf="activeTab === 'agents'" class="agents-tab-layout">
+      <aside class="agents-sidebar">
+        <h3>Agents</h3>
+        <div class="agent-list">
+          <button 
+            *ngFor="let agent of agents"
+            class="agent-item"
+            [class.active]="activeAgentKey === agent.key"
+            (click)="selectAgent(agent.key)">
+            <span class="agent-icon">{{ agent.name[0] }}</span>
+            <div class="agent-info">
+              <span class="name">{{ agent.name }}</span>
+              <span class="status" [class.connected]="agent.isConnected">
+                {{ agent.isConnected ? 'Connected' : 'Setup Required' }}
+              </span>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <section class="agent-form-area">
+        <div *ngIf="activeAgentKey; else selectAgentPrompt">
+          <app-settings-agent></app-settings-agent>
+        </div>
+        <ng-template #selectAgentPrompt>
+          <div class="empty-state">
+            <i class="fas fa-mouse-pointer"></i>
+            <p>Select an agent from the list to configure credentials</p>
+          </div>
+        </ng-template>
+      </section>
+    </div>
+
+    <!-- STORAGE TAB -->
+    <div *ngIf="activeTab === 'storage'" class="storage-tab-layout">
+      <app-drive-config></app-drive-config>
+    </div>
+  </main>
+</div>

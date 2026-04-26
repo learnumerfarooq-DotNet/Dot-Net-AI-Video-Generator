@@ -38,7 +38,7 @@ import { DriveConfigComponent }        from './features/drive/drive-config';
 import { DriveOAuthCallbackComponent } from './features/drive/drive-oauth-callback';
 
 // Settings
-import { SettingsAgentComponent } from './features/settings/settings-agent/settings-agent';
+import { SettingsMainComponent } from './features/settings/settings-main/settings-main';
 
 export const routes: Routes = [
   // Default: redirect to dashboard overview
@@ -76,18 +76,9 @@ export const routes: Routes = [
   { path: 'scheduler/retry',  component: SchedulerRetryComponent  },
   { path: 'scheduler/queue',  component: SchedulerQueueComponent  },
 
-  // Settings (one route per agent)
-  { path: 'settings/main-brain',             component: SettingsAgentComponent },
-  { path: 'settings/trend-agent',            component: SettingsAgentComponent },
-  { path: 'settings/script-agent',           component: SettingsAgentComponent },
-  { path: 'settings/video-generation-agent', component: SettingsAgentComponent },
-  { path: 'settings/shorts-agent-1',         component: SettingsAgentComponent },
-  { path: 'settings/shorts-agent-2',         component: SettingsAgentComponent },
-  { path: 'settings/youtube-agent',          component: SettingsAgentComponent },
-  { path: 'settings/tiktok-agent',           component: SettingsAgentComponent },
-  { path: 'settings/instagram-agent',        component: SettingsAgentComponent },
-  { path: 'settings/facebook-agent',         component: SettingsAgentComponent },
-  { path: 'settings/linkedin-agent',         component: SettingsAgentComponent },
+  // Settings (Unified)
+  { path: 'settings', component: SettingsMainComponent },
+  { path: 'settings/:agent', component: SettingsMainComponent },
 
   // Drive
   { path: 'drive/explorer',        component: DriveExplorerComponent        },

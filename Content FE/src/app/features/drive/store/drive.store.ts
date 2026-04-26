@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { ConnectionTestResult, DriveService } from '../services/drive.service';
 import { DriveSettings, WorkspaceBootstrap } from '../../../core/models/content-factory.models';
+import { API_BASE, ENDPOINTS } from '../../../core/constants/api-endpoints';
 
 type DriveState = {
   driveConfig: DriveSettings | null;
@@ -11,6 +12,8 @@ type DriveState = {
   testingDriveConnection: boolean;
   loadingDrive: boolean;
   status: string;
+  currentFolderId: string | null;
+  breadcrumbs: { id: string | null, name: string }[];
 };
 
 const initialState: DriveState = {
@@ -19,7 +22,9 @@ const initialState: DriveState = {
   driveConnection: null,
   testingDriveConnection: false,
   loadingDrive: false,
-  status: 'Ready'
+  status: 'Ready',
+  currentFolderId: null,
+  breadcrumbs: [{ id: null, name: 'My Drive' }]
 };
 
 export const DriveStore = signalStore(
@@ -47,21 +52,80 @@ export const DriveStore = signalStore(
       }
     },
 
-    async loadDriveFiles() {
+    async loadDriveFiles(folderId?: string | null) {
       if (!store.isDriveConfigured()) return;
+      const targetId = folderId === undefined ? store.currentFolderId() : folderId;
+      
       patchState(store, { loadingDrive: true, status: 'Fetching Drive files...' });
       try {
-        const files = await firstValueFrom(driveSvc.listFiles());
-        patchState(store, { driveFiles: files, loadingDrive: false, status: 'Drive explorer synced.' });
+        const files = await firstValueFrom(driveSvc.listFiles(targetId || undefined));
+        patchState(store, { 
+          driveFiles: files, 
+          loadingDrive: false, 
+          status: 'Drive explorer synced.',
+          currentFolderId: targetId
+        });
       } catch (error) {
         patchState(store, { loadingDrive: false, status: `Drive sync failed: ${readError(error)}` });
       }
     },
 
+    async navigateToFolder(folderId: string | null, folderName: string) {
+      if (folderId === store.currentFolderId()) return;
+
+      // Update breadcrumbs
+      if (folderId === null) {
+        patchState(store, { breadcrumbs: [{ id: null, name: 'My Drive' }] });
+      } else {
+        const existing = store.breadcrumbs();
+        const index = existing.findIndex(b => b.id === folderId);
+        if (index !== -1) {
+          patchState(store, { breadcrumbs: existing.slice(0, index + 1) });
+        } else {
+          patchState(store, { breadcrumbs: [...existing, { id: folderId, name: folderName }] });
+        }
+      }
+
+      await this.loadDriveFiles(folderId);
+    },
+
+    async uploadDriveFile(file: File) {
+      patchState(store, { loadingDrive: true, status: `Uploading ${file.name}...` });
+      try {
+        const newFile = await firstValueFrom(driveSvc.uploadFile(file, store.currentFolderId() || undefined));
+        patchState(store, (state) => ({
+          driveFiles: [newFile, ...state.driveFiles],
+          loadingDrive: false,
+          status: `File '${file.name}' uploaded successfully.`
+        }));
+      } catch (error) {
+        patchState(store, { loadingDrive: false, status: `Upload failed: ${readError(error)}` });
+      }
+    },
+
+    async downloadDriveFile(item: any) {
+      const fileId = item.id || item.Id;
+
+      if (!fileId) {
+        return;
+      }
+
+      const downloadUrl = `${API_BASE}/${ENDPOINTS.DRIVE}/files/${fileId}/download`;
+      
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.target = '_blank'; 
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      patchState(store, { status: `Started download for ${item.name || 'file'}` });
+    },
+
     async createDriveFolder(name: string) {
       patchState(store, { loadingDrive: true, status: 'Creating folder in Drive...' });
       try {
-        const folder = await firstValueFrom(driveSvc.createFolder(name));
+        const folder = await firstValueFrom(driveSvc.createFolder(name, store.currentFolderId() || undefined));
         patchState(store, (state) => ({
           driveFiles: [folder, ...state.driveFiles],
           loadingDrive: false,

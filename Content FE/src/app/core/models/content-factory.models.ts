@@ -285,6 +285,12 @@ export type AgentChatResponse = {
   messages: ChatMessage[];
 };
 
+export type AgentStreamChunk = {
+  type: 'thought' | 'delta' | 'tool' | 'done';
+  content: string;
+  message?: ChatMessage;
+};
+
 export type SaveAgentSettingsRequest = {
   providerName: string;
   modelName: string;
@@ -335,11 +341,9 @@ export const AGENT_NAV_ITEMS: SideNavTemplate[] = [
   { id: 'linkedin-agent', label: 'LinkedIn Agent', icon: 'fa-linkedin', badge: 'agentConnection', agentKey: 'linkedin-agent' }
 ];
 
-export const SETTINGS_NAV_ITEMS: SideNavTemplate[] = AGENT_NAV_ITEMS.map((item) => ({
-  ...item,
-  id: `settings-${item.agentKey}`,
-  badge: 'settingsStatus'
-}));
+export const SETTINGS_NAV_ITEMS: SideNavTemplate[] = [
+  { id: 'settings-unified', label: 'Unified Settings', icon: 'fa-sliders', badge: 'settingsStatus' }
+];
 
 export const MENU_BY_SECTION: Record<TopSectionId, SideNavTemplate[]> = {
   dashboard: [

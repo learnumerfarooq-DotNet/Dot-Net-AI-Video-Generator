@@ -1,13 +1,37 @@
 using Microsoft.EntityFrameworkCore;
+using AiContentFactory.Infrastructure.Security;
 
 namespace AiContentFactory.Infrastructure.Persistence;
 
 public static class StudioDatabaseInitializer
 {
-    public static async Task InitializeAsync(StudioDbContext dbContext, CancellationToken cancellationToken)
+    public static async Task InitializeAsync(StudioDbContext dbContext, IEncryptionService encryption, CancellationToken cancellationToken)
     {
+        Console.WriteLine("[DB] Initializing database...");
+        
+        // Diagnostic: list existing tables
+        try {
+            var conn = dbContext.Database.GetDbConnection();
+            if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(cancellationToken);
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'";
+            var tables = new List<string>();
+            using (var reader = await cmd.ExecuteReaderAsync(cancellationToken)) {
+                while (await reader.ReadAsync(cancellationToken)) tables.Add(reader.GetString(0));
+            }
+            Console.WriteLine($"[DB] Existing tables: {string.Join(", ", tables)}");
+        } catch (Exception ex) {
+            Console.WriteLine($"[DB] Could not list tables: {ex.Message}");
+        }
+
         await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        Console.WriteLine("[DB] Schema ensured.");
+        
         await EnsureAgentSchemaAsync(dbContext, cancellationToken);
+        await MigrateLegacyMemoriesAsync(dbContext, cancellationToken);
+        await MigrateDriveConfigAsync(dbContext, cancellationToken);
+        await MigrateAgentConnectionsAsync(dbContext, encryption, cancellationToken);
+        await CleanupAgentSchemaAsync(dbContext, cancellationToken);
 
         if (await dbContext.Agents.AnyAsync(cancellationToken))
         {
@@ -17,8 +41,10 @@ public static class StudioDatabaseInitializer
         var now = DateTimeOffset.UtcNow;
 
         var agents = SeedAgents(now);
+        var connections = SeedConnections(now);
         var usages = SeedUsage(agents, now);
-        var memories = SeedMemories(now);
+        var globalMemories = SeedGlobalMemories(now);
+        var agentMemories = SeedAgentMemories(now);
         var videos = SeedVideos(now);
         var publications = SeedPublications(videos, now);
         var schedules = SeedSchedules(now);
@@ -26,8 +52,10 @@ public static class StudioDatabaseInitializer
         var messages = SeedChatMessages(now);
 
         await dbContext.Agents.AddRangeAsync(agents, cancellationToken);
+        await dbContext.AgentConnections.AddRangeAsync(connections, cancellationToken);
         await dbContext.AgentUsages.AddRangeAsync(usages, cancellationToken);
-        await dbContext.Memories.AddRangeAsync(memories, cancellationToken);
+        await dbContext.GlobalMemories.AddRangeAsync(globalMemories, cancellationToken);
+        await dbContext.AgentMemories.AddRangeAsync(agentMemories, cancellationToken);
         await dbContext.Videos.AddRangeAsync(videos, cancellationToken);
         await dbContext.Publications.AddRangeAsync(publications, cancellationToken);
         await dbContext.ScheduleJobs.AddRangeAsync(schedules, cancellationToken);
@@ -48,21 +76,163 @@ public static class StudioDatabaseInitializer
             cancellationToken);
     }
 
+    private static async Task MigrateLegacyMemoriesAsync(StudioDbContext dbContext, CancellationToken cancellationToken)
+    {
+        try 
+        {
+            // Check if legacy table exists
+            var checkSql = "SELECT count(*) FROM information_schema.tables WHERE table_name = 'studio_memories'";
+            using var command = dbContext.Database.GetDbConnection().CreateCommand();
+            command.CommandText = checkSql;
+            if (command.Connection!.State != System.Data.ConnectionState.Open) await command.Connection.OpenAsync(cancellationToken);
+            var exists = (long)(await command.ExecuteScalarAsync(cancellationToken) ?? 0) > 0;
+
+            if (!exists) return;
+
+            await dbContext.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO studio_global_memories ("Id", "Title", "Content", "Status", "Tags", "CreatedAt", "UpdatedAt", "ApprovedAt")
+                SELECT "Id", "Title", "Content", "Status", "Tags", "CreatedAt", "UpdatedAt", "ApprovedAt"
+                FROM studio_memories WHERE "Scope" = 'Global';
+
+                INSERT INTO studio_agent_memories ("Id", "AgentKey", "Title", "Content", "Status", "Tags", "CreatedAt", "UpdatedAt", "ApprovedAt")
+                SELECT "Id", "AgentKey", "Title", "Content", "Status", "Tags", "CreatedAt", "UpdatedAt", "ApprovedAt"
+                FROM studio_memories WHERE "Scope" = 'Local';
+
+                DROP TABLE studio_memories;
+                """, cancellationToken);
+        }
+        catch
+        {
+            // Ignore if migration fails (e.g. columns don't match)
+        }
+    }
+
+    private static async Task MigrateDriveConfigAsync(StudioDbContext dbContext, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (await dbContext.DriveConfigs.AnyAsync(cancellationToken)) return;
+
+            // Attempt to find the config file in common locations
+            var paths = new[] 
+            { 
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "drive.config.json"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "drive.config.json"),
+                "data/drive.config.json",
+                "drive.config.json"
+            };
+
+            string? foundPath = null;
+            foreach (var p in paths)
+            {
+                if (File.Exists(p)) { foundPath = p; break; }
+            }
+
+            if (foundPath == null) return;
+
+            var json = await File.ReadAllTextAsync(foundPath, cancellationToken);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var config = new StudioDriveConfigEntity
+            {
+                Id = Guid.NewGuid(),
+                ClientId = GetProp(root, "clientId"),
+                ClientSecret = GetProp(root, "clientSecret"),
+                RefreshToken = GetProp(root, "refreshToken"),
+                RootFolderId = GetProp(root, "rootFolderId") ?? "root",
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            dbContext.DriveConfigs.Add(config);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch { /* ignore */ }
+    }
+
+    private static string GetProp(System.Text.Json.JsonElement el, string name) 
+        => el.TryGetProperty(name, out var p) ? p.GetString() ?? "" : "";
+
+    private static async Task MigrateAgentConnectionsAsync(StudioDbContext dbContext, IEncryptionService encryption, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (await dbContext.AgentConnections.AnyAsync(cancellationToken)) return;
+            if (!await dbContext.Agents.AnyAsync(cancellationToken)) return;
+
+            using var conn = dbContext.Database.GetDbConnection();
+            await conn.OpenAsync(cancellationToken);
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT \"Key\", \"ProviderName\", \"ModelName\", \"BaseUrl\", \"ApiKey\", \"ClientId\", \"ClientSecret\", \"RefreshToken\", \"UseOpenRouter\", \"OpenRouterModel\", \"OpenRouterApiKey\" FROM studio_agents";
+            
+            using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var agentKey = reader.GetString(0);
+                dbContext.AgentConnections.Add(new StudioAgentConnectionEntity
+                {
+                    Id = Guid.NewGuid(),
+                    AgentKey = agentKey,
+                    ProviderName = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                    ModelName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                    BaseUrl = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                    ApiKey = encryption.Encrypt(reader.IsDBNull(4) ? string.Empty : reader.GetString(4)),
+                    ClientId = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                    ClientSecret = encryption.Encrypt(reader.IsDBNull(6) ? string.Empty : reader.GetString(6)),
+                    RefreshToken = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                    UseOpenRouter = !reader.IsDBNull(8) && reader.GetBoolean(8),
+                    OpenRouterModel = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+                    OpenRouterApiKey = encryption.Encrypt(reader.IsDBNull(10) ? string.Empty : reader.GetString(10)),
+                    UpdatedAt = DateTimeOffset.UtcNow
+                });
+            }
+            
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch { /* ignore if columns don't exist yet */ }
+    }
+
+    private static async Task CleanupAgentSchemaAsync(StudioDbContext dbContext, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Only cleanup if connections have been migrated and table exists
+            if (!await dbContext.AgentConnections.AnyAsync(cancellationToken)) return;
+
+            await dbContext.Database.ExecuteSqlRawAsync(
+                """
+                ALTER TABLE studio_agents
+                DROP COLUMN IF EXISTS "ProviderName",
+                DROP COLUMN IF EXISTS "ModelName",
+                DROP COLUMN IF EXISTS "BaseUrl",
+                DROP COLUMN IF EXISTS "ApiKey",
+                DROP COLUMN IF EXISTS "ClientId",
+                DROP COLUMN IF EXISTS "ClientSecret",
+                DROP COLUMN IF EXISTS "RefreshToken",
+                DROP COLUMN IF EXISTS "UseOpenRouter",
+                DROP COLUMN IF EXISTS "OpenRouterModel",
+                DROP COLUMN IF EXISTS "OpenRouterApiKey";
+                """, cancellationToken);
+        }
+        catch { /* ignore */ }
+    }
+
     private static List<StudioAgentEntity> SeedAgents(DateTimeOffset now)
     {
         return
         [
-            CreateAgent("main-brain", "Main Brain", "Brain", true, true, false, "OpenAI", "gpt-4.1", "Connect GPT API and guide the whole content factory.", "System architect and chat assistant for content decisions.", 1, now),
-            CreateAgent("trend-agent", "Trend Agent", "Discovery", true, true, false, "OpenAI", "gpt-4.1-mini", "Detect Angular/.NET trend opportunities and feed the queue.", "Trend discovery, topic ranking, and signal analysis.", 2, now),
-            CreateAgent("script-agent", "Script Agent", "Writing", true, true, false, "OpenAI", "gpt-4.1", "Turn strong angles into scripts, hooks, and outlines.", "Long-form scripts, shorts scripts, and hook improvements.", 3, now),
-            CreateAgent("video-generation-agent", "Video Generation Agent", "Video", true, false, false, "Runway", "gen-4", "Create production-ready video assets for technical content.", "Scene planning, render settings, and final video generation.", 4, now),
-            CreateAgent("shorts-agent-1", "Shorts Agent 1", "Shorts", true, true, false, "OpenAI", "gpt-4.1-mini", "Cut long ideas into short-form concepts.", "Short-form ideation and clip breakdowns.", 5, now),
-            CreateAgent("shorts-agent-2", "Shorts Agent 2", "Shorts", true, true, false, "OpenRouter", "openai/gpt-4.1-mini", "Generate alternate shorts angles and remix variations.", "Remixes, hooks, and second-variant shorts.", 6, now),
-            CreateAgent("youtube-agent", "YouTube Agent", "Publishing", true, false, false, "YouTube", "youtube-publisher", "Manage YouTube upload and performance workflow.", "Upload planning, descriptions, chapters, and publish flow.", 7, now),
-            CreateAgent("tiktok-agent", "TikTok Agent", "Publishing", true, false, false, "TikTok", "tiktok-publisher", "Manage TikTok posting and iteration loop.", "Posting windows, captions, and retries.", 8, now),
-            CreateAgent("instagram-agent", "Instagram Agent", "Publishing", true, false, false, "Instagram", "instagram-publisher", "Manage Instagram Reels and post packaging.", "Reels workflow, captions, and publishing status.", 9, now),
-            CreateAgent("facebook-agent", "Facebook Agent", "Publishing", true, false, false, "Facebook", "facebook-publisher", "Manage Facebook publishing and repost flow.", "Cross-posting and audience-fit packaging.", 10, now),
-            CreateAgent("linkedin-agent", "LinkedIn Agent", "Publishing", true, false, false, "LinkedIn", "linkedin-publisher", "Manage LinkedIn video publishing and thought-leadership angle.", "Professional tone packaging and publish timing.", 11, now)
+            CreateAgent("main-brain", "Main Brain", "Brain", true, true, false, "Connect GPT API and guide the whole content factory.", "System architect and chat assistant for content decisions.", 1, now),
+            CreateAgent("trend-agent", "Trend Agent", "Discovery", true, true, false, "Detect Angular/.NET trend opportunities and feed the queue.", "Trend discovery, topic ranking, and signal analysis.", 2, now),
+            CreateAgent("script-agent", "Script Agent", "Writing", true, true, false, "Turn strong angles into scripts, hooks, and outlines.", "Long-form scripts, shorts scripts, and hook improvements.", 3, now),
+            CreateAgent("video-generation-agent", "Video Generation Agent", "Video", true, false, false, "Create production-ready video assets for technical content.", "Scene planning, render settings, and final video generation.", 4, now),
+            CreateAgent("shorts-agent-1", "Shorts Agent 1", "Shorts", true, true, false, "Cut long ideas into short-form concepts.", "Short-form ideation and clip breakdowns.", 5, now),
+            CreateAgent("shorts-agent-2", "Shorts Agent 2", "Shorts", true, true, true, "Generate alternate shorts angles and remix variations.", "Remixes, hooks, and second-variant shorts.", 6, now),
+            CreateAgent("youtube-agent", "YouTube Agent", "Publishing", true, false, false, "Manage YouTube upload and performance workflow.", "Upload planning, descriptions, chapters, and publish flow.", 7, now),
+            CreateAgent("tiktok-agent", "TikTok Agent", "Publishing", true, false, false, "Manage TikTok posting and iteration loop.", "Posting windows, captions, and retries.", 8, now),
+            CreateAgent("instagram-agent", "Instagram Agent", "Publishing", true, false, false, "Manage Instagram Reels and post packaging.", "Reels workflow, captions, and publishing status.", 9, now),
+            CreateAgent("facebook-agent", "Facebook Agent", "Publishing", true, false, false, "Manage Facebook publishing and repost flow.", "Cross-posting and audience-fit packaging.", 10, now),
+            CreateAgent("linkedin-agent", "LinkedIn Agent", "Publishing", true, false, false, "Manage LinkedIn video publishing and thought-leadership angle.", "Professional tone packaging and publish timing.", 11, now)
         ];
     }
 
@@ -73,8 +243,6 @@ public static class StudioDatabaseInitializer
         bool requiresConnection,
         bool supportsOpenRouter,
         bool isConnected,
-        string provider,
-        string model,
         string description,
         string capability,
         int sortOrder,
@@ -94,13 +262,6 @@ public static class StudioDatabaseInitializer
             RequiresConnection = requiresConnection,
             SupportsOpenRouter = supportsOpenRouter,
             IsConnected = isConnected,
-            ProviderName = provider,
-            ModelName = model,
-            BaseUrl = string.Empty,
-            ApiKey = string.Empty,
-            ClientId = string.Empty,
-            ClientSecret = string.Empty,
-            RefreshToken = string.Empty,
             SourceVideoPath = key is "video-generation-agent" or "shorts-agent-1" or "shorts-agent-2"
                 ? $"Google Drive/Input/{name.Replace(' ', '-')}"
                 : string.Empty,
@@ -108,15 +269,42 @@ public static class StudioDatabaseInitializer
             StorageFolderName = hasDriveWorkspace ? $"{name} Workspace" : string.Empty,
             StorageFolderPath = driveFolderPath,
             StorageFolderUrl = hasDriveWorkspace ? $"https://drive.google.com/drive/folders/{driveFolderId}" : string.Empty,
-            UseOpenRouter = false,
-            OpenRouterModel = string.Empty,
-            OpenRouterApiKey = string.Empty,
             Status = isConnected ? "Connected" : "Connect API first",
             CapabilitySummary = capability,
             SortOrder = sortOrder,
             LastRunAt = now.AddHours(-sortOrder * 2),
             UpdatedAt = now,
             Notes = "Google Drive folder and API credentials can be set from Settings."
+        };
+    }
+
+    private static List<StudioAgentConnectionEntity> SeedConnections(DateTimeOffset now)
+    {
+        return
+        [
+            CreateConnection("main-brain", "OpenAI", "gpt-4.1", now),
+            CreateConnection("trend-agent", "OpenAI", "gpt-4.1-mini", now),
+            CreateConnection("script-agent", "OpenAI", "gpt-4.1", now),
+            CreateConnection("video-generation-agent", "Runway", "gen-4", now),
+            CreateConnection("shorts-agent-1", "OpenAI", "gpt-4.1-mini", now),
+            CreateConnection("shorts-agent-2", "OpenRouter", "openai/gpt-4.1-mini", now),
+            CreateConnection("youtube-agent", "YouTube", "youtube-publisher", now),
+            CreateConnection("tiktok-agent", "TikTok", "tiktok-publisher", now),
+            CreateConnection("instagram-agent", "Instagram", "instagram-publisher", now),
+            CreateConnection("facebook-agent", "Facebook", "facebook-publisher", now),
+            CreateConnection("linkedin-agent", "LinkedIn", "linkedin-publisher", now)
+        ];
+    }
+
+    private static StudioAgentConnectionEntity CreateConnection(string agentKey, string provider, string model, DateTimeOffset now)
+    {
+        return new StudioAgentConnectionEntity
+        {
+            Id = Guid.NewGuid(),
+            AgentKey = agentKey,
+            ProviderName = provider,
+            ModelName = model,
+            UpdatedAt = now
         };
     }
 
@@ -146,47 +334,27 @@ public static class StudioDatabaseInitializer
         return usage;
     }
 
-    private static List<StudioMemoryEntity> SeedMemories(DateTimeOffset now)
+    private static List<StudioGlobalMemoryEntity> SeedGlobalMemories(DateTimeOffset now)
     {
         return
         [
-            CreateMemory("Global", null, "Video performance history", "Angular standalone migration content performs better when the first 10 seconds compare old vs new patterns.", "Approved", ["performance", "hooks"], now.AddDays(-22), now.AddDays(-21)),
-            CreateMemory("Global", null, "Trending topics", "Signal-based state management and Angular modern architecture topics keep producing good watch time.", "Approved", ["trend", "angular"], now.AddDays(-18), now.AddDays(-18)),
-            CreateMemory("Global", null, "Successful hooks", "Hooks with a direct question plus an engineering pain point outperform broad AI-intro hooks.", "Approved", ["hook", "copy"], now.AddDays(-12), now.AddDays(-12)),
-            CreateMemory("Global", null, "Audience behavior", "Technical viewers stay longer when examples include folder structure and tradeoffs, not only theory.", "Approved", ["audience", "retention"], now.AddDays(-9), now.AddDays(-9)),
-            CreateMemory("Global", null, "Global optimization rules", "Keep technical videos concise, visual, and benchmark-based before adding calls to action.", "Approved", ["optimization"], now.AddDays(-6), now.AddDays(-6)),
-            CreateMemory("Local", "script-agent", "Writing style improvement", "Use shorter sentences and label the three biggest architecture decisions explicitly.", "Approved", ["style", "script"], now.AddDays(-8), now.AddDays(-7)),
-            CreateMemory("Local", "video-generation-agent", "Rendering settings", "Use brighter editor shots and slower zooms for IDE walkthrough clips.", "Approved", ["video", "rendering"], now.AddDays(-7), now.AddDays(-7)),
-            CreateMemory("Local", "youtube-agent", "Best posting time", "YouTube uploads around 7 PM local time have the strongest first-hour velocity.", "Approved", ["youtube", "schedule"], now.AddDays(-5), now.AddDays(-5)),
-            CreateMemory("Pending", "trend-agent", "New trend signal", "ASP.NET Core background workers plus AI automation is gaining attention and should be reviewed for global memory.", "Pending", ["trend", "dotnet"], now.AddDays(-1), null),
-            CreateMemory("Pending", "script-agent", "Hook variation", "Open with one painful monolith problem before naming the architecture pattern.", "Pending", ["hook", "script"], now.AddHours(-18), null),
-            CreateMemory("Pending", "linkedin-agent", "Professional framing", "Lead with team efficiency and maintainability when repackaging for LinkedIn.", "Pending", ["linkedin", "audience"], now.AddHours(-12), null)
+            new StudioGlobalMemoryEntity { Id = Guid.NewGuid(), Title = "Video performance history", Content = "Angular standalone migration content performs better when the first 10 seconds compare old vs new patterns.", Status = "Approved", Tags = ["performance", "hooks"], CreatedAt = now.AddDays(-22), UpdatedAt = now.AddDays(-21), ApprovedAt = now.AddDays(-21) },
+            new StudioGlobalMemoryEntity { Id = Guid.NewGuid(), Title = "Trending topics", Content = "Signal-based state management and Angular modern architecture topics keep producing good watch time.", Status = "Approved", Tags = ["trend", "angular"], CreatedAt = now.AddDays(-18), UpdatedAt = now.AddDays(-18), ApprovedAt = now.AddDays(-18) },
+            new StudioGlobalMemoryEntity { Id = Guid.NewGuid(), Title = "Successful hooks", Content = "Hooks with a direct question plus an engineering pain point outperform broad AI-intro hooks.", Status = "Approved", Tags = ["hook", "copy"], CreatedAt = now.AddDays(-12), UpdatedAt = now.AddDays(-12), ApprovedAt = now.AddDays(-12) },
+            new StudioGlobalMemoryEntity { Id = Guid.NewGuid(), Title = "Audience behavior", Content = "Technical viewers stay longer when examples include folder structure and tradeoffs, not only theory.", Status = "Approved", Tags = ["audience", "retention"], CreatedAt = now.AddDays(-9), UpdatedAt = now.AddDays(-9), ApprovedAt = now.AddDays(-9) },
+            new StudioGlobalMemoryEntity { Id = Guid.NewGuid(), Title = "Global optimization rules", Content = "Keep technical videos concise, visual, and benchmark-based before adding calls to action.", Status = "Approved", Tags = ["optimization"], CreatedAt = now.AddDays(-6), UpdatedAt = now.AddDays(-6), ApprovedAt = now.AddDays(-6) }
         ];
     }
 
-    private static StudioMemoryEntity CreateMemory(
-        string scope,
-        string? agentKey,
-        string title,
-        string content,
-        string status,
-        string[] tags,
-        DateTimeOffset createdAt,
-        DateTimeOffset? approvedAt)
+    private static List<StudioAgentMemoryEntity> SeedAgentMemories(DateTimeOffset now)
     {
-        return new StudioMemoryEntity
-        {
-            Id = Guid.NewGuid(),
-            Scope = scope == "Pending" ? "Global" : scope,
-            AgentKey = agentKey,
-            Title = title,
-            Content = content,
-            Status = status,
-            Tags = tags,
-            CreatedAt = createdAt,
-            UpdatedAt = approvedAt ?? createdAt,
-            ApprovedAt = approvedAt
-        };
+        return
+        [
+            new StudioAgentMemoryEntity { Id = Guid.NewGuid(), AgentKey = "script-agent", Title = "Writing style improvement", Content = "Use shorter sentences and label the three biggest architecture decisions explicitly.", Status = "Approved", Tags = ["style", "script"], CreatedAt = now.AddDays(-8), UpdatedAt = now.AddDays(-7), ApprovedAt = now.AddDays(-7) },
+            new StudioAgentMemoryEntity { Id = Guid.NewGuid(), AgentKey = "video-generation-agent", Title = "Rendering settings", Content = "Use brighter editor shots and slower zooms for IDE walkthrough clips.", Status = "Approved", Tags = ["video", "rendering"], CreatedAt = now.AddDays(-7), UpdatedAt = now.AddDays(-7), ApprovedAt = now.AddDays(-7) },
+            new StudioAgentMemoryEntity { Id = Guid.NewGuid(), AgentKey = "youtube-agent", Title = "Best posting time", Content = "YouTube uploads around 7 PM local time have the strongest first-hour velocity.", Status = "Approved", Tags = ["youtube", "schedule"], CreatedAt = now.AddDays(-5), UpdatedAt = now.AddDays(-5), ApprovedAt = now.AddDays(-5) },
+            new StudioAgentMemoryEntity { Id = Guid.NewGuid(), AgentKey = "trend-agent", Title = "New trend signal", Content = "ASP.NET Core background workers plus AI automation is gaining attention.", Status = "Pending", Tags = ["trend", "dotnet"], CreatedAt = now.AddDays(-1), UpdatedAt = now.AddDays(-1) }
+        ];
     }
 
     private static List<StudioVideoEntity> SeedVideos(DateTimeOffset now)
@@ -245,25 +413,7 @@ public static class StudioDatabaseInitializer
             CreatePublication(publishedVideos[1], "YouTube", "Published", 12100, 880, 95, 44, now.AddDays(-11)),
             CreatePublication(publishedVideos[1], "TikTok", "Published", 19800, 1500, 172, 86, now.AddDays(-10)),
             CreatePublication(publishedVideos[2], "Instagram", "Published", 8700, 790, 60, 39, now.AddDays(-8)),
-            CreatePublication(publishedVideos[2], "Facebook", "Failed", 0, 0, 0, 0, null),
-            new StudioPublicationEntity
-            {
-                Id = Guid.NewGuid(),
-                VideoId = videos.First(video => video.Stage == "ReadyToUpload").Id,
-                Platform = "YouTube",
-                Status = "Scheduled",
-                PublishedUrl = string.Empty,
-                PublishedAt = null
-            },
-            new StudioPublicationEntity
-            {
-                Id = Guid.NewGuid(),
-                VideoId = videos.First(video => video.Stage == "Backlog").Id,
-                Platform = "LinkedIn",
-                Status = "Scheduled",
-                PublishedUrl = string.Empty,
-                PublishedAt = null
-            }
+            CreatePublication(publishedVideos[2], "Facebook", "Failed", 0, 0, 0, 0, null)
         ];
     }
 

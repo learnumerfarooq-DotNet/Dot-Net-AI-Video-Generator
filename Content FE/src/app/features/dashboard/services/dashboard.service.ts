@@ -18,4 +18,16 @@ export class DashboardService {
       { stage } satisfies UpdateStageRequest
     );
   }
+
+  getSummary(): Observable<any> {
+    return this.api.get<any>(ENDPOINTS.DASHBOARD_SUMMARY);
+  }
+
+  getVideosByStage(stage: string): Observable<VideoItem[]> {
+    return this.api.get<VideoItem[]>(`${ENDPOINTS.DASHBOARD_VIDEOS}/${stage}`);
+  }
+
+  getAgentRuns(page: number = 1, pageSize: number = 10): Observable<any> {
+    return this.api.get<any>(`${ENDPOINTS.DASHBOARD_RUNS}?page=${page}&pageSize=${pageSize}`);
+  }
 }

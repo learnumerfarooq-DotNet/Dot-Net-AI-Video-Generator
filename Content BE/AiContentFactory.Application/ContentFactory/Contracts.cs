@@ -28,7 +28,7 @@ public sealed record AgentRunResult(
     string Summary,
     IReadOnlyList<ContentArtifact> Artifacts);
 
-public sealed record MemorySearchRequest(MemoryScope? Scope, string? AgentName);
+public sealed record MemorySearchRequest(MemoryScope? Scope, string? AgentName, string? Query = null);
 
 public sealed record ApproveMemorySuggestionRequest(string? RevisedContent);
 

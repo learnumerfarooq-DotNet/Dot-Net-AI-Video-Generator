@@ -24,6 +24,29 @@ public sealed class AgentsController(IStudioWorkspaceFacade facade, StudioDbCont
         return Ok(response);
     }
 
+    /// <summary>Streams a message to the specified agent using SSE.</summary>
+    [HttpGet("{agentKey}/chat/stream")]
+    public async Task StreamMessage(
+        [FromRoute] string agentKey,
+        [FromQuery] string message,
+        CancellationToken cancellationToken)
+    {
+        Response.ContentType = "text/event-stream";
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers.Connection = "keep-alive";
+
+        var request = new SendAgentMessageRequest(message);
+        await foreach (var chunk in facade.StreamAgentMessageAsync(agentKey, request, cancellationToken))
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(chunk, new System.Text.Json.JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase 
+            });
+            await Response.WriteAsync($"data: {json}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+    }
+
     /// <summary>
     /// Removes broken/debug messages from an agent's chat history.
     /// Targets messages that begin with known error-prefix strings.
@@ -43,5 +66,16 @@ public sealed class AgentsController(IStudioWorkspaceFacade facade, StudioDbCont
         var count = await db.SaveChangesAsync(cancellationToken);
 
         return Ok(new { deleted = count, agentKey });
+    }
+
+    /// <summary>Tests the connection to the agent's configured provider.</summary>
+    [HttpPost("{agentKey}/connection/test")]
+    [ProducesResponseType<ConnectionTestResult>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TestConnection(
+        [FromRoute] string agentKey,
+        CancellationToken cancellationToken)
+    {
+        var result = await facade.TestAgentConnectionAsync(agentKey, cancellationToken);
+        return Ok(result);
     }
 }
