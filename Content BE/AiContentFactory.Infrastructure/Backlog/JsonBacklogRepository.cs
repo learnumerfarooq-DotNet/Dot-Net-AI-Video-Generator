@@ -46,7 +46,9 @@ public sealed class JsonBacklogRepository(IJsonFileStore store) : IBacklogReposi
                 return null;
             }
 
-            items[index] = items[index] with { Status = status, UpdatedAt = DateTimeOffset.UtcNow };
+            var item = items[index];
+            item.Status = status;
+            item.UpdatedAt = DateTimeOffset.UtcNow;
             await store.WriteAsync(BacklogFile, items, cancellationToken);
             return items[index];
         }

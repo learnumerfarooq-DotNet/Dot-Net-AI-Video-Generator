@@ -1,28 +1,59 @@
-<section class="usage-grid" *ngIf="dashboardStore.dashboard() as dashboard">
-  <section class="panel" *ngFor="let series of dashboard.usageSeries">
-    <div class="panel-header">
-      <div class="item-info">
-        <h2>{{ series.agentName }}</h2>
-        <div class="item-meta">{{ series.agentKey }}</div>
-      </div>
-      <i class="fa-solid fa-chart-simple" [style.color]="series.accentColor"></i>
-    </div>
-
-    <div class="mini-chart">
-      <div class="bar-container" *ngFor="let point of series.points">
-        <div class="bar" [style.height.%]="usageHeight(point, series)" [style.background]="series.accentColor"></div>
-        <span class="item-meta" style="font-size:10px">{{ point.capturedAt | date:'EEE' }}</span>
-      </div>
-    </div>
-
-    <div class="list-stack">
-      <div class="list-item" *ngIf="latestPoint(series) as latest">
-        <div class="item-info">
-          <div class="item-title">${{ latest.costUsd }} Cost</div>
-          <div class="item-meta">{{ latest.tokensIn + latest.tokensOut | number }} tokens consumed</div>
+<div class="usage-grid lg:grid-cols-2 gap-6 animate-fade-in" *ngIf="dashboardStore.dashboard() as dashboard">
+  <div class="premium-card p-6 flex flex-col" *ngFor="let series of dashboard.usageSeries; let i = index" [style.animation-delay]="i * 0.1 + 's'">
+    <div class="flex justify-between items-start mb-8">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-bg-deep flex items-center justify-center border border-border-soft shadow-lg group">
+          <i class="fa-solid fa-microchip group-hover:scale-110 transition-transform" [style.color]="series.accentColor"></i>
         </div>
-        <span class="badge badge-primary">{{ latest.requestCount }} reqs</span>
+        <div>
+          <h2 class="text-xl font-bold">{{ series.agentName }}</h2>
+          <span class="text-xs font-black text-text-muted uppercase tracking-widest">{{ series.agentKey }}</span>
+        </div>
+      </div>
+      <div class="text-right">
+        <span class="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">Total Series</span>
+        <i class="fa-solid fa-chart-simple text-xl" [style.color]="series.accentColor"></i>
       </div>
     </div>
-  </section>
-</section>
+
+    <!-- Chart Visualization -->
+    <div class="h-32 flex items-end gap-2 mb-8 bg-bg-deep/30 rounded-2xl p-4 border border-border-soft group">
+      <div class="flex-1 flex flex-col justify-end gap-2 h-full" *ngFor="let point of series.points">
+        <div class="w-full rounded-t-lg transition-all duration-500 relative group/bar" 
+             [style.height.%]="usageHeight(point, series)" 
+             [style.background]="series.accentColor"
+             [style.opacity]="0.6">
+          <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-strong px-2 py-1 rounded text-[10px] font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity border border-border pointer-events-none">
+            ${{ point.costUsd }}
+          </div>
+        </div>
+        <span class="text-[8px] font-black text-text-muted uppercase text-center">{{ point.capturedAt | date:'EEE' }}</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="p-4 rounded-2xl bg-bg-deep/50 border border-border-soft" *ngIf="latestPoint(series) as latest">
+        <span class="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">Current Cost</span>
+        <div class="flex items-baseline gap-2">
+          <span class="text-lg font-black text-primary">${{ latest.costUsd }}</span>
+          <span class="text-[10px] font-bold text-success">Live</span>
+        </div>
+      </div>
+      <div class="p-4 rounded-2xl bg-bg-deep/50 border border-border-soft" *ngIf="latestPoint(series) as latest">
+        <span class="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">Total Throughput</span>
+        <div class="flex items-baseline gap-2">
+          <span class="text-lg font-black">{{ latest.tokensIn + latest.tokensOut | number }}</span>
+          <span class="text-[10px] font-bold text-text-muted uppercase">Tokens</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 pt-6 border-t border-border-soft flex justify-between items-center" *ngIf="latestPoint(series) as latest">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-bolt-lightning text-warning text-xs"></i>
+        <span class="text-xs font-bold text-text-muted">Load factor: <span class="text-text-main">{{ latest.requestCount }} calls</span></span>
+      </div>
+      <button class="text-xs font-black text-primary uppercase tracking-widest hover:underline">View Breakdown</button>
+    </div>
+  </div>
+</div>

@@ -1,125 +1,245 @@
-<div class="drive-container">
-  <div class="drive-header-card">
-    <div class="header-left">
-      <div class="breadcrumb-container">
+<div class="flex-1 flex flex-col bg-bg-main p-4 gap-4 min-h-0 overflow-hidden">
+
+  <!-- Explorer Toolbar -->
+  <header class="flex justify-between items-center bg-card border border-border p-4 rounded-xl shrink-0">
+    <!-- Left: Breadcrumbs -->
+    <div class="flex items-center gap-3 overflow-hidden">
+      <button (click)="goBack()" class="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-text-secondary hover:bg-bg-card-hover transition-colors">
+        <i class="fa-solid fa-chevron-left text-xs"></i>
+      </button>
+      
+      <nav class="flex items-center gap-2 overflow-hidden">
         <ng-container *ngFor="let crumb of driveStore.breadcrumbs(); let last = last">
-          <span class="crumb" [class.active]="last" (click)="onBreadcrumbClick(crumb)">{{ crumb.name }}</span>
-          <i class="fa-solid fa-chevron-right separator" *ngIf="!last"></i>
+          <button (click)="onBreadcrumbClick(crumb)" 
+                  class="text-sm font-medium transition-colors whitespace-nowrap"
+                  [ngClass]="last ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'">
+            {{ crumb.name }}
+          </button>
+          <i *ngIf="!last" class="fa-solid fa-chevron-right text-[10px] text-text-secondary/40"></i>
         </ng-container>
-      </div>
-      <h2 class="current-folder-title" *ngIf="driveStore.breadcrumbs().length > 1">
-        {{ driveStore.breadcrumbs()[driveStore.breadcrumbs().length - 1].name }}
-      </h2>
+      </nav>
     </div>
+
+    <!-- Right: Actions & View Controls -->
+    <div class="flex items-center gap-1 sm:gap-2 flex-wrap sm:flex-nowrap justify-end">
+      <!-- Search -->
+      <div class="relative w-24 sm:w-32 md:w-48 shrink">
+        <i class="fa-solid fa-magnifying-glass absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-text-secondary text-[10px] sm:text-xs"></i>
+        <input type="text" [(ngModel)]="searchQuery" placeholder="Search..."
+               class="w-full bg-bg-main border border-border rounded-lg pl-6 sm:pl-9 pr-2 py-1.5 sm:py-2 text-xs sm:text-sm text-text-primary focus:outline-none focus:border-accent-blue transition-colors">
+      </div>
+
+      <div class="h-4 sm:h-6 w-[1px] bg-border mx-0.5 sm:mx-1 hidden sm:block"></div>
+
+      <button (click)="showNewFolderModal = true" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-border text-text-secondary hover:bg-bg-card-hover transition-colors shrink-0" title="New Folder">
+        <i class="fa-solid fa-folder-plus text-[10px] sm:text-xs"></i>
+      </button>
+      <button (click)="showUploadModal = true" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-border text-text-secondary hover:bg-bg-card-hover transition-colors shrink-0" title="Upload File">
+        <i class="fa-solid fa-cloud-arrow-up text-[10px] sm:text-xs"></i>
+      </button>
+      <button (click)="driveStore.loadDriveFiles()" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-border text-text-secondary hover:bg-bg-card-hover transition-colors shrink-0" title="Refresh">
+        <i class="fa-solid fa-rotate text-[10px] sm:text-xs" [class.fa-spin]="driveStore.loadingDrive()"></i>
+      </button>
+
+      <div class="h-4 sm:h-6 w-[1px] bg-border mx-0.5 sm:mx-1 hidden sm:block"></div>
+
+      <!-- View Toggle -->
+      <div class="flex bg-bg-main border border-border rounded-lg p-0.5 shrink-0">
+        <button (click)="driveStore.setViewMode('grid')" 
+                class="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded transition-colors"
+                [ngClass]="driveStore.viewMode() === 'grid' ? 'bg-card text-accent-blue shadow-sm' : 'text-text-secondary hover:text-text-primary'">
+          <i class="fa-solid fa-table-cells-large text-[10px]"></i>
+        </button>
+        <button (click)="driveStore.setViewMode('list')" 
+                class="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded transition-colors"
+                [ngClass]="driveStore.viewMode() === 'list' ? 'bg-card text-accent-blue shadow-sm' : 'text-text-secondary hover:text-text-primary'">
+          <i class="fa-solid fa-list text-[10px]"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Explorer Content -->
+  <div class="flex-1 flex gap-6 overflow-hidden">
     
-    <div class="drive-actions">
-      <button class="action-btn secondary" (click)="showUploadModal = true">
-        <i class="fa-solid fa-cloud-arrow-up"></i>
-        <span>Upload File</span>
-      </button>
-      <button class="action-btn primary" (click)="showNewFolderModal = true">
-        <i class="fa-solid fa-folder-plus"></i>
-        <span>New Folder</span>
-      </button>
-    </div>
-  </div>
+    <!-- File Grid/List -->
+    <div class="flex-1 bg-card border border-border rounded-xl flex flex-col overflow-hidden">
+      <!-- Grid View -->
+      <div *ngIf="driveStore.viewMode() === 'grid'" class="flex-1 overflow-y-auto p-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+          <!-- Folders & Files -->
+          <article *ngFor="let item of filteredFiles" 
+                   (click)="onItemClick(item)"
+                   class="group flex flex-col items-center gap-3 p-4 rounded-xl border border-transparent hover:border-border hover:bg-bg-card-hover transition-all cursor-pointer relative"
+                   [ngClass]="{'border-accent-blue/40 bg-accent-blue/5': driveStore.selectedFile()?.id === item.id}">
+            
+            <!-- File Icon/Thumbnail -->
+            <div class="w-16 h-16 rounded-lg bg-bg-main flex items-center justify-center text-3xl transition-transform group-hover:scale-110">
+              <img *ngIf="item.thumbnailLink" [src]="item.thumbnailLink" class="w-full h-full object-cover rounded-lg shadow-sm">
+              <i *ngIf="!item.thumbnailLink" class="fa-solid" [ngClass]="getFileIcon(item.mimeType || item.type)" 
+                 [style.color]="item.isFolder || item.type === 'folder' ? '#60a5fa' : '#94a3b8'"></i>
+            </div>
+            
+            <div class="text-center w-full">
+              <div class="text-sm font-medium text-text-primary truncate px-2" [title]="item.name">{{ item.name }}</div>
+              <div class="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-bold">
+                {{ (item.isFolder || item.type === 'folder') ? 'Folder' : (item.size | number:'1.0-0') + ' B' }}
+              </div>
+            </div>
 
-  <!-- Main Content Area -->
-  <div class="explorer-viewport">
-    <!-- Loader Overlay -->
-    <div class="content-loader" *ngIf="driveStore.loadingDrive()">
-      <div class="premium-spinner">
-        <div class="inner"></div>
-        <div class="outer"></div>
+            <!-- Context Actions (on hover) -->
+            <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button (click)="downloadFile($event, item)" class="w-7 h-7 bg-card border border-border rounded shadow-sm text-text-secondary hover:text-accent-blue"><i class="fa-solid fa-download text-[10px]"></i></button>
+              <button (click)="deleteFile($event, item.id)" class="w-7 h-7 bg-card border border-border rounded shadow-sm text-text-secondary hover:text-accent-red"><i class="fa-solid fa-trash text-[10px]"></i></button>
+            </div>
+          </article>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="!filteredFiles.length && !driveStore.loadingDrive()" class="h-full flex flex-col items-center justify-center py-20 text-text-secondary">
+          <i class="fa-solid fa-folder-open text-4xl mb-4 opacity-50"></i>
+          <p class="font-medium">This folder is empty</p>
+        </div>
       </div>
-      <span class="loader-text">{{ driveStore.status() }}</span>
+
+      <!-- List View -->
+      <div *ngIf="driveStore.viewMode() === 'list'" class="flex-1 overflow-y-auto">
+        <table class="w-full text-left text-sm text-text-primary border-collapse">
+          <thead class="bg-bg-main sticky top-0 z-10 border-b border-border shadow-sm">
+            <tr>
+              <th class="p-4 font-medium text-text-secondary pl-6">Name</th>
+              <th class="p-4 font-medium text-text-secondary">Last Modified</th>
+              <th class="p-4 font-medium text-text-secondary">Size</th>
+              <th class="p-4 font-medium text-text-secondary text-right pr-6">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredFiles" 
+                (click)="onItemClick(item)"
+                class="border-b border-border hover:bg-bg-card-hover transition-colors cursor-pointer"
+                [ngClass]="{'bg-accent-blue/5': driveStore.selectedFile()?.id === item.id}">
+              <td class="p-4 pl-6">
+                <div class="flex items-center gap-3">
+                  <i class="fa-solid text-lg" [ngClass]="getFileIcon(item.mimeType || item.type)"
+                     [style.color]="item.isFolder || item.type === 'folder' ? '#60a5fa' : '#94a3b8'"></i>
+                  <span class="font-medium">{{ item.name }}</span>
+                </div>
+              </td>
+              <td class="p-4 text-text-secondary">{{ item.modifiedTime || item.date }}</td>
+              <td class="p-4 text-text-secondary uppercase text-[10px] font-bold">{{ (item.isFolder || item.type === 'folder') ? 'Folder' : (item.size || 0) + ' B' }}</td>
+              <td class="p-4 text-right pr-6">
+                <div class="flex gap-2 justify-end">
+                  <button (click)="downloadFile($event, item)" class="w-8 h-8 flex items-center justify-center rounded border border-border text-text-secondary hover:text-accent-blue hover:bg-blue-500/10"><i class="fa-solid fa-download text-xs"></i></button>
+                  <button (click)="deleteFile($event, item.id)" class="w-8 h-8 flex items-center justify-center rounded border border-border text-text-secondary hover:text-accent-red hover:bg-red-500/10"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- Explorer Grid -->
-    <div class="explorer-grid" *ngIf="!driveStore.loadingDrive()">
-      <!-- Folder Item -->
-      <div class="explorer-item folder-card" *ngFor="let item of driveStore.driveFiles()" 
-           [class.is-folder]="item.type === 'folder' || item.Type === 'folder'"
-           (click)="onItemClick(item)">
+    <!-- Preview/Detail Sidebar -->
+    <aside class="w-80 flex flex-col gap-6 shrink-0 overflow-y-auto">
+      <!-- Selected Item Detail -->
+      <div class="bg-card border border-border rounded-xl p-5 flex flex-col gap-4" *ngIf="driveStore.selectedFile() as file">
+        <h4 class="font-bold text-text-primary flex items-center gap-2">
+          <i class="fa-solid fa-circle-info text-accent-blue"></i> Item Details
+        </h4>
         
-        <div class="item-overlay-actions">
-          <button class="mini-btn" (click)="downloadFile($event, item)" 
-                  *ngIf="item.type !== 'folder' && item.Type !== 'folder'"
-                  title="Download Asset">
-            <i class="fa-solid fa-download"></i>
+        <!-- Large Thumbnail -->
+        <div class="aspect-video w-full rounded-lg bg-bg-main overflow-hidden border border-border flex items-center justify-center">
+          <img *ngIf="file.thumbnailLink" [src]="file.thumbnailLink" class="w-full h-full object-cover">
+          <i *ngIf="!file.thumbnailLink" class="fa-solid text-4xl opacity-20" [ngClass]="getFileIcon(file.mimeType)"></i>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex flex-col gap-1">
+            <span class="text-[10px] text-text-secondary font-bold uppercase">Name</span>
+            <span class="text-sm font-medium text-text-primary break-all">{{ file.name }}</span>
+          </div>
+          <div class="flex justify-between border-t border-border pt-2">
+            <div class="flex flex-col gap-1">
+              <span class="text-[10px] text-text-secondary font-bold uppercase">Size</span>
+              <span class="text-xs text-text-primary">{{ file.size }} B</span>
+            </div>
+            <div class="flex flex-col gap-1 text-right">
+              <span class="text-[10px] text-text-secondary font-bold uppercase">Type</span>
+              <span class="text-xs text-text-primary">{{ file.mimeType }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline Action for RAW Videos -->
+        <div class="mt-2 pt-4 border-t border-border flex flex-col gap-3" *ngIf="file.mimeType?.includes('video')">
+          <div class="p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg text-xs text-accent-blue font-medium flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> RAW video detected
+          </div>
+          <button (click)="startPipeline($event, file)" 
+                  class="w-full py-2 bg-accent-blue text-white rounded-lg hover:bg-blue-600 font-bold text-sm transition-all shadow-sm">
+            Start Production Pipeline
           </button>
         </div>
+      </div>
 
-        <div class="visual-container">
-          <div class="folder-icon-glow" *ngIf="item.type === 'folder' || item.Type === 'folder'">
-            <i class="fa-solid fa-folder"></i>
+      <!-- Folder Stats Card -->
+      <div class="bg-card border border-border rounded-xl p-5 flex flex-col gap-4">
+        <h4 class="font-bold text-text-primary flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-accent-green"></i> Storage Stats
+        </h4>
+        <div class="space-y-4">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-text-secondary">Space Used</span>
+            <span class="text-text-primary font-bold">1.2 GB / 15 GB</span>
           </div>
-          <div class="file-icon-glow" *ngIf="item.type !== 'folder' && item.Type !== 'folder'">
-            <i class="fa-solid" [ngClass]="getFileIcon(item.type || item.Type)"></i>
+          <div class="w-full h-2 bg-bg-main rounded-full overflow-hidden border border-border">
+            <div class="h-full bg-accent-blue" style="width: 8%"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-[10px]">
+            <div class="flex flex-col gap-1 p-2 bg-bg-deep rounded-lg border border-border">
+              <span class="text-text-secondary uppercase tracking-wider font-bold">Files</span>
+              <span class="text-text-primary font-bold text-sm">{{ driveStore.driveFileCount() }}</span>
+            </div>
+            <div class="flex flex-col gap-1 p-2 bg-bg-deep rounded-lg border border-border">
+              <span class="text-text-secondary uppercase tracking-wider font-bold">Folders</span>
+              <span class="text-text-primary font-bold text-sm">4</span>
+            </div>
           </div>
         </div>
-
-        <div class="item-meta">
-          <span class="name">{{ item.name || item.Name }}</span>
-          <span class="details">{{ item.size || item.Size || '-' }} &bull; {{ item.date || item.Date }}</span>
-        </div>
       </div>
-    </div>
+    </aside>
 
-    <!-- Empty State -->
-    <div class="empty-state" *ngIf="!driveStore.loadingDrive() && driveStore.driveFiles().length === 0">
-      <i class="fa-solid fa-folder-open"></i>
-      <p>This folder is empty</p>
-    </div>
   </div>
 
-  <!-- Bottom Navigation -->
-  <div class="sticky-footer" *ngIf="driveStore.breadcrumbs().length > 1">
-    <button class="back-nav-btn" (click)="goBack()">
-      <i class="fa-solid fa-arrow-left"></i>
-      <span>Back to {{ driveStore.breadcrumbs()[driveStore.breadcrumbs().length - 2].name }}</span>
-    </button>
-  </div>
-
-  <!-- Modals -->
-  <div class="premium-modal-overlay" *ngIf="showNewFolderModal" (click)="showNewFolderModal = false">
-    <div class="premium-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>New Folder</h3>
-        <button class="close-btn" (click)="showNewFolderModal = false"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-hint">Enter a name for your new directory in Google Drive.</p>
-        <div class="input-group">
-          <i class="fa-solid fa-folder input-icon"></i>
-          <input type="text" [(ngModel)]="newFolderName" placeholder="Folder Name..." (keyup.enter)="confirmCreateFolder()" autofocus>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" (click)="showNewFolderModal = false">Cancel</button>
-        <button class="btn-confirm" [disabled]="!newFolderName.trim()" (click)="confirmCreateFolder()">Create Folder</button>
+  <!-- Modals (Simple implementations) -->
+  <div *ngIf="showNewFolderModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+    <div class="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl p-6">
+      <h3 class="text-xl font-bold text-text-primary mb-4">Create New Folder</h3>
+      <input type="text" [(ngModel)]="newFolderName" placeholder="Folder Name"
+             class="w-full bg-bg-main border border-border rounded-lg px-4 py-3 text-text-primary mb-6 outline-none focus:border-accent-blue">
+      <div class="flex justify-end gap-3">
+        <button (click)="showNewFolderModal = false" class="px-5 py-2 border border-border rounded-lg text-text-primary font-bold hover:bg-bg-card-hover transition-colors">Cancel</button>
+        <button (click)="confirmCreateFolder()" class="px-5 py-2 bg-accent-blue text-white rounded-lg font-bold hover:bg-blue-600 transition-colors shadow-lg">Create Folder</button>
       </div>
     </div>
   </div>
 
-  <div class="premium-modal-overlay" *ngIf="showUploadModal" (click)="showUploadModal = false">
-    <div class="premium-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Upload Asset</h3>
-        <button class="close-btn" (click)="showUploadModal = false"><i class="fa-solid fa-xmark"></i></button>
+  <div *ngIf="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+    <div class="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl p-6">
+      <h3 class="text-xl font-bold text-text-primary mb-4">Upload to Drive</h3>
+      <div class="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-4 mb-6 hover:border-accent-blue/50 transition-colors cursor-pointer relative overflow-hidden group">
+        <i class="fa-solid fa-cloud-arrow-up text-4xl text-text-secondary group-hover:text-accent-blue transition-colors"></i>
+        <p class="text-sm text-text-secondary text-center">
+          <span class="text-accent-blue font-bold">Click to select</span> or drag and drop<br>
+          <span class="text-[10px] uppercase font-bold mt-2 block">{{ selectedLocalFile?.name || 'MAX 1GB' }}</span>
+        </p>
+        <input type="file" (change)="onFileSelected($event)" class="absolute inset-0 opacity-0 cursor-pointer">
       </div>
-      <div class="modal-body">
-        <div class="upload-drop-zone" (click)="fileInput.click()">
-          <i class="fa-solid fa-cloud-arrow-up main-icon"></i>
-          <p *ngIf="!selectedFile">Click to select a file from your computer</p>
-          <p class="selected-name" *ngIf="selectedFile">{{ selectedFile.name }}</p>
-          <input type="file" #fileInput (change)="onFileSelected($event)" style="display: none">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" (click)="showUploadModal = false">Cancel</button>
-        <button class="btn-confirm" [disabled]="!selectedFile" (click)="confirmUpload()">Start Upload</button>
+      <div class="flex justify-end gap-3">
+        <button (click)="showUploadModal = false" class="px-5 py-2 border border-border rounded-lg text-text-primary font-bold hover:bg-bg-card-hover transition-colors">Cancel</button>
+        <button (click)="confirmUpload()" class="px-5 py-2 bg-accent-blue text-white rounded-lg font-bold hover:bg-blue-600 transition-colors shadow-lg">Upload Now</button>
       </div>
     </div>
   </div>
+
 </div>

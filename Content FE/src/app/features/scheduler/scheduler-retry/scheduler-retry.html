@@ -1,21 +1,115 @@
-<div class="page-content scheduler-container">
-  <section class="panel">
-    <header class="panel-header">
-      <h2>Retry Mechanisms</h2>
-      <i class="fa-solid fa-rotate-left"></i>
-    </header>
-    <div class="jobs-list">
-      <article class="job-card" *ngFor="let job of schedulerStore.retryJobs()">
-        <div class="job-info">
-          <div class="job-title">{{ job.name }}</div>
-          <div class="job-meta">{{ job.notes }}</div>
+<div class="h-full flex flex-col bg-bg-main p-6 gap-6">
+
+  <!-- Stats -->
+  <div class="flex gap-6 shrink-0">
+    <div class="bg-card border border-border rounded-xl p-6 flex-1 flex justify-between items-center">
+      <div>
+        <h2 class="text-2xl font-bold text-text-primary mb-1">Retry Queue</h2>
+        <div class="text-sm text-text-secondary">Jobs that failed and are scheduled to run again</div>
+      </div>
+      <div class="flex gap-8 text-center border-l border-border pl-8">
+        <div>
+          <div class="text-2xl font-bold text-accent-blue">{{ schedulerStore.retryJobs().length }}</div>
+          <div class="text-xs text-text-secondary uppercase mt-1">Pending Retries</div>
         </div>
-        <span class="job-status status-pending">{{ job.status }}</span>
-      </article>
-      <div class="empty-state" *ngIf="!schedulerStore.retryJobs().length">
-        <i class="fa-solid fa-rotate-right"></i>
-        <p>No retry jobs pending.</p>
+        <div>
+          <div class="text-2xl font-bold text-accent-red">{{ schedulerStore.deadLetterQueue().length }}</div>
+          <div class="text-xs text-text-secondary uppercase mt-1">Dead Letters</div>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-accent-green">89%</div>
+          <div class="text-xs text-text-secondary uppercase mt-1">Resolution Rate</div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
+
+  <!-- Retry Queue Table -->
+  <div class="flex-1 bg-card border border-border rounded-xl flex flex-col min-h-0 overflow-hidden">
+    <div class="p-4 border-b border-border font-bold text-text-primary flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-rotate-right text-accent-blue"></i>
+        <h3>Active Retry Queue</h3>
+      </div>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto">
+      <table class="w-full text-left text-sm text-text-primary border-collapse">
+        <thead class="bg-bg-main sticky top-0 z-10 shadow-sm border-b border-border">
+          <tr>
+            <th class="p-4 font-medium text-text-secondary">Job Name</th>
+            <th class="p-4 font-medium text-text-secondary">Agent</th>
+            <th class="p-4 font-medium text-text-secondary">Error Message</th>
+            <th class="p-4 font-medium text-text-secondary">Retry #</th>
+            <th class="p-4 font-medium text-text-secondary">Next Retry At</th>
+            <th class="p-4 font-medium text-text-secondary text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of schedulerStore.retryJobs()" class="border-b border-border hover:bg-bg-card-hover transition-colors">
+            <td class="p-4 font-medium">{{ job.name }}</td>
+            <td class="p-4"><span class="px-2 py-1 bg-bg-card border border-border rounded text-xs font-mono">{{ job.agentKey }}</span></td>
+            <td class="p-4 max-w-xs truncate text-accent-red" [title]="job.notes">{{ job.notes || 'Unknown error occurred during execution' }}</td>
+            <td class="p-4"><span class="px-2 py-1 bg-orange-500/10 text-orange-400 rounded text-xs font-bold">{{ job.trigger }}</span></td>
+            <td class="p-4 text-text-secondary">{{ job.nextRunAt }}</td>
+            <td class="p-4 text-right">
+              <div class="flex gap-2 justify-end">
+                <button (click)="retryNow(job.id)" class="px-3 py-1 bg-accent-blue text-white rounded text-xs font-medium hover:bg-blue-600">
+                  Retry Now
+                </button>
+                <button (click)="moveToDeadLetter(job.id)" class="px-3 py-1 border border-border text-accent-red rounded text-xs font-medium hover:bg-red-500/10">
+                  Move to Dead Letter
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="!schedulerStore.retryJobs().length" class="flex flex-col items-center justify-center py-12 text-text-secondary">
+        <i class="fa-solid fa-check-double text-4xl mb-4 opacity-50 text-accent-green"></i>
+        <p>Retry queue is empty. All systems normal.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dead Letter Queue (Collapsible) -->
+  <div class="bg-card border border-border rounded-xl flex flex-col overflow-hidden shrink-0">
+    <button class="p-4 flex justify-between items-center text-text-primary hover:bg-bg-card-hover transition-colors font-bold" (click)="toggleDeadLetters()">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-skull-crossbones text-accent-red"></i>
+        <h3>Dead Letter Queue ({{ schedulerStore.deadLetterQueue().length }})</h3>
+      </div>
+      <i class="fa-solid transition-transform duration-200" [ngClass]="showDeadLetters ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+    </button>
+    
+    <div *ngIf="showDeadLetters" class="border-t border-border overflow-y-auto max-h-64">
+      <table class="w-full text-left text-sm text-text-primary border-collapse">
+        <thead class="bg-bg-main border-b border-border">
+          <tr>
+            <th class="p-3 font-medium text-text-secondary pl-4">Job Name</th>
+            <th class="p-3 font-medium text-text-secondary">Agent</th>
+            <th class="p-3 font-medium text-text-secondary">Failed After</th>
+            <th class="p-3 font-medium text-text-secondary text-right pr-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let letter of schedulerStore.deadLetterQueue()" class="border-b border-border">
+            <td class="p-3 pl-4 font-medium">{{ letter.name }}</td>
+            <td class="p-3"><span class="px-2 py-1 bg-bg-card border border-border rounded text-xs font-mono">{{ letter.agentKey }}</span></td>
+            <td class="p-3 text-text-secondary">{{ letter.trigger }} attempts</td>
+            <td class="p-3 pr-4 text-right">
+              <button (click)="resolveDeadLetter(letter.id)" class="px-3 py-1 border border-border text-accent-green rounded text-xs font-medium hover:bg-green-500/10">
+                Resolve & Archive
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div *ngIf="!schedulerStore.deadLetterQueue().length" class="p-6 text-center text-sm text-text-secondary italic">
+        No dead letters found.
+      </div>
+    </div>
+  </div>
+
 </div>

@@ -1,22 +1,118 @@
-<div class="page-content">
-  <section class="panel">
-    <header class="panel-header">
-      <h2>Local Memory</h2>
-      <i class="fa-solid fa-layer-group"></i>
-    </header>
-    <div class="memory-list">
-      <article class="memory-item" *ngFor="let item of memoryStore.localMemories()">
-        <strong>{{ item.title }}</strong>
-        <div class="item-meta" style="margin-bottom:8px">{{ item.agentKey }}</div>
-        <p>{{ item.content }}</p>
-        <div class="item-meta">
-          <span class="badge" *ngFor="let tag of item.tags">{{ tag }}</span>
+<div class="h-full flex flex-col p-8 overflow-hidden bg-bg-deep">
+  
+  <div class="flex gap-8 h-full min-h-0">
+    <!-- Agent Selector Panel (Condensed) -->
+    <div class="w-80 flex flex-col gap-6">
+      <div class="premium-card p-5 flex flex-col h-full min-h-0">
+        <div class="flex items-center gap-3 mb-6 px-1">
+          <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <h3 class="text-xs font-black uppercase tracking-widest opacity-70">Agent Fleet</h3>
         </div>
-      </article>
-      <div class="empty-state" *ngIf="!memoryStore.localMemories().length">
-        <i class="fa-solid fa-layer-group"></i>
-        <p>No agent-specific memories approved yet.</p>
+        
+        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+          <button *ngFor="let agent of agentsStore.agents()"
+                  class="w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between group"
+                  [ngClass]="selectedAgentKey() === agent.key ? 'bg-primary-soft border-primary text-primary' : 'bg-transparent border-border-soft text-text-muted hover:border-border-strong hover:bg-bg-card-hover'"
+                  (click)="loadAgent(agent.key)">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-microchip text-[10px] opacity-40 group-hover:opacity-100"></i>
+              <span class="text-xs font-bold">{{ agent.name }}</span>
+            </div>
+            <div class="w-1.5 h-1.5 rounded-full" [ngClass]="agent.isConnected ? 'bg-success shadow-[0_0_8px_var(--success)]' : 'bg-danger/50'"></div>
+          </button>
+        </div>
       </div>
     </div>
-  </section>
+
+    <!-- Agent Memory Details -->
+    <div class="flex-1 flex flex-col gap-6 min-w-0" *ngIf="memoryStore.agentLocalMemories()[selectedAgentKey()] as localMemory; else loadingAgent">
+      
+      <!-- Stats Header Card -->
+      <div class="premium-card p-6 flex justify-between items-center border-l-4 border-l-primary">
+        <div class="flex items-center gap-6">
+          <div class="w-16 h-16 rounded-2xl bg-bg-deep flex items-center justify-center text-primary text-2xl border border-border-soft">
+            <i class="fa-solid fa-database"></i>
+          </div>
+          <div>
+            <h2 class="text-2xl font-black tracking-tighter mb-1">{{ selectedAgentKey() }} <span class="text-xs font-black text-text-muted uppercase tracking-widest ml-2">Persistence Matrix</span></h2>
+            <div class="text-[10px] font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
+              <i class="fa-solid fa-clock"></i>
+              Last Pulse: <span class="text-text-main">{{ localMemory.lastRunAt || 'No historical data' }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex gap-10">
+          <div class="text-center">
+            <div class="text-xs font-black text-text-muted uppercase tracking-widest mb-1 opacity-50">Throughput</div>
+            <div class="text-xl font-black">{{ localMemory.totalRuns }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs font-black text-success uppercase tracking-widest mb-1 opacity-50">Success</div>
+            <div class="text-xl font-black text-success">{{ localMemory.successes }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs font-black text-danger uppercase tracking-widest mb-1 opacity-50">Failures</div>
+            <div class="text-xl font-black text-danger">{{ localMemory.failures }}</div>
+          </div>
+          <div class="pl-8 border-l border-border-soft">
+            <div class="text-xs font-black text-primary uppercase tracking-widest mb-1 opacity-50">Efficiency</div>
+            <div class="text-xl font-black text-primary">
+              {{ localMemory.totalRuns > 0 ? (localMemory.successes / localMemory.totalRuns * 100).toFixed(0) : 0 }}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Config Editor -->
+      <div class="flex-1 premium-card flex flex-col min-h-0 overflow-hidden bg-surface/30">
+        <div class="px-6 py-4 border-b border-border-soft flex justify-between items-center bg-surface-strong/5">
+          <div class="flex items-center gap-3">
+             <i class="fa-solid fa-code text-primary text-xs"></i>
+             <h3 class="text-xs font-black uppercase tracking-widest">Neural Configuration (JSON)</h3>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="syncToDrive()" class="premium-button secondary !py-1.5 !px-3 !rounded-lg !text-[9px]">
+              <i class="fa-brands fa-google-drive mr-1.5"></i>Sync Drive
+            </button>
+            <button (click)="resetToDefaults()" class="premium-button secondary !py-1.5 !px-3 !rounded-lg !text-[9px] !text-danger hover:!bg-danger/10">
+              <i class="fa-solid fa-rotate-left mr-1.5"></i>Reset
+            </button>
+            <button (click)="toggleEdit()" class="premium-button secondary !py-1.5 !px-3 !rounded-lg !text-[9px]">
+              <i class="fa-solid" [ngClass]="editMode() ? 'fa-xmark' : 'fa-pen'"></i>
+              <span class="ml-1.5">{{ editMode() ? 'Cancel' : 'Edit Matrix' }}</span>
+            </button>
+            <button *ngIf="editMode()" (click)="saveLocalMemory()" class="premium-button !py-1.5 !px-4 !rounded-lg !text-[9px]">
+              <i class="fa-solid fa-save mr-1.5"></i>Update Neural Memory
+            </button>
+          </div>
+        </div>
+        
+        <div class="flex-1 relative flex flex-col min-h-0">
+          <div *ngIf="saveError()" class="absolute top-4 left-6 right-6 z-20 bg-danger/10 text-danger p-3 rounded-lg border border-danger/20 text-[11px] font-bold backdrop-blur-md">
+            <i class="fa-solid fa-triangle-exclamation mr-2"></i> {{ saveError() }}
+          </div>
+          
+          <textarea *ngIf="editMode()" 
+                    [(ngModel)]="configJsonString" 
+                    class="flex-1 w-full bg-[#08090d] text-[#e5e7eb] font-mono p-6 resize-none focus:outline-none text-xs leading-relaxed custom-scrollbar border-0" 
+                    placeholder="Enter valid JSON configuration..."></textarea>
+          
+          <div *ngIf="!editMode()" class="flex-1 overflow-y-auto bg-[#08090d] text-[#9ca3af] font-mono p-6 text-xs whitespace-pre leading-relaxed custom-scrollbar">
+            <code class="block">{{ configJsonString() }}</code>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <ng-template #loadingAgent>
+      <div class="flex-1 flex flex-col items-center justify-center premium-card bg-surface/20">
+        <div class="w-16 h-16 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-6"></div>
+        <p class="text-xs font-black uppercase tracking-widest text-text-muted animate-pulse">Syncing Agent Memory...</p>
+      </div>
+    </ng-template>
+  </div>
 </div>

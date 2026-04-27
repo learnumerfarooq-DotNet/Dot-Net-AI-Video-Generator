@@ -19,6 +19,9 @@ import { MemoryStore } from '../../features/memory/store/memory.store';
 import { DriveStore } from '../../features/drive/store/drive.store';
 import { SettingsStore } from '../../features/settings/store/settings.store';
 import { SchedulerStore } from '../../features/scheduler/store/scheduler.store';
+import { PipelineStore } from './pipeline.store';
+import { AnalyticsStore } from './analytics.store';
+import { ErrorStore } from './error.store';
 
 type StudioState = {
   activeSection: TopSectionId;
@@ -72,7 +75,10 @@ export const ContentFactoryStore = signalStore(
     memoryStore = inject(MemoryStore),
     driveStore = inject(DriveStore),
     settingsStore = inject(SettingsStore),
-    schedulerStore = inject(SchedulerStore)
+    schedulerStore = inject(SchedulerStore),
+    pipelineStore = inject(PipelineStore),
+    analyticsStore = inject(AnalyticsStore),
+    errorStore = inject(ErrorStore)
   ) => {
     async function refreshAll() {
       patchState(store, { loading: true, status: 'Syncing workspace...' });
@@ -94,6 +100,12 @@ export const ContentFactoryStore = signalStore(
         driveStore.hydrate(workspace);
         settingsStore.hydrate(workspace);
         schedulerStore.hydrate(workspace);
+        
+        // NEW: Hydrate automation stores
+        // (Assuming these are part of the bootstrap or added as extensions)
+        // For now we hydrate with empty lists if missing in bootstrap
+        pipelineStore.hydrate([]); 
+        analyticsStore.hydrate([], []);
 
       } catch (error) {
         patchState(store, {
@@ -146,6 +158,10 @@ export const ContentFactoryStore = signalStore(
 
       setActiveAgent(key: string) {
         agentsStore.setActiveAgentKey(key);
+      },
+
+      setStatus(status: string) {
+        patchState(store, { status });
       }
     };
   })

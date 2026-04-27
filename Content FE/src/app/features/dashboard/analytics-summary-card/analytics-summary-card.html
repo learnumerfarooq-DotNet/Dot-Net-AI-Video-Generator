@@ -1,0 +1,60 @@
+<div class="premium-card p-6 animate-fade-in h-full" style="animation-delay: 0.3s">
+  <div class="flex justify-between items-center mb-8">
+    <div>
+      <h2 class="text-xl font-bold">Growth Metrics</h2>
+      <p class="text-sm text-text-muted">Content performance overview</p>
+    </div>
+    <span class="text-xs font-black text-success bg-success/10 px-3 py-1.5 rounded-full uppercase tracking-widest border border-success/20">
+      {{ growth() }} ↑
+    </span>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 mb-8">
+    <div class="p-5 rounded-3xl bg-bg-deep/40 border border-border-soft relative overflow-hidden group">
+      <div class="absolute -right-2 -top-2 w-16 h-16 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all"></div>
+      <span class="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">Reach</span>
+      <div class="flex items-baseline gap-2">
+        <span class="text-2xl font-black">{{ views() }}</span>
+        <span class="text-xs font-bold text-success">{{ viewsTrend() }}</span>
+      </div>
+    </div>
+    
+    <div class="p-5 rounded-3xl bg-bg-deep/40 border border-border-soft relative overflow-hidden group">
+      <div class="absolute -right-2 -top-2 w-16 h-16 bg-accent/5 rounded-full blur-xl group-hover:bg-accent/10 transition-all"></div>
+      <span class="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">Impact</span>
+      <span class="text-2xl font-black">{{ likes() }}</span>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <div class="flex items-center justify-between p-4 rounded-2xl bg-surface-soft/30 hover:bg-surface-soft/50 transition-all border border-transparent hover:border-border-soft">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-bg-deep flex items-center justify-center text-primary text-xs">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <span class="text-sm font-bold opacity-80">Conversion CTR</span>
+      </div>
+      <span class="text-sm font-black">{{ ctr() }}</span>
+    </div>
+
+    <div class="flex items-center justify-between p-4 rounded-2xl bg-surface-soft/30 hover:bg-surface-soft/50 transition-all border border-transparent hover:border-border-soft">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-bg-deep flex items-center justify-center text-accent text-xs">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <span class="text-sm font-bold opacity-80">Retention Time</span>
+      </div>
+      <span class="text-sm font-black">{{ watchTime() }}</span>
+    </div>
+
+    <div class="flex items-center justify-between p-4 rounded-2xl bg-surface-soft/30 hover:bg-surface-soft/50 transition-all border border-transparent hover:border-border-soft">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-bg-deep flex items-center justify-center text-success text-xs">
+          <i class="fa-solid fa-users-viewfinder"></i>
+        </div>
+        <span class="text-sm font-bold opacity-80">Audience Pulse</span>
+      </div>
+      <span class="text-sm font-black text-success">{{ engagementRate() }}</span>
+    </div>
+  </div>
+</div>

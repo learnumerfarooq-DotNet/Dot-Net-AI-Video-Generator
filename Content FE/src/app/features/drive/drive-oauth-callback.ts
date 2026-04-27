@@ -144,7 +144,7 @@ export class DriveOAuthCallbackComponent implements OnInit {
 
       // Redirect after 2 seconds
       setTimeout(() => {
-        this.router.navigate(['/drive/config']);
+        this.router.navigate(['/drive/drive-config']);
         this.store.setSideTab('drive-config');
       }, 2000);
     } catch (err: any) {
@@ -154,7 +154,7 @@ export class DriveOAuthCallbackComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/drive/config']);
+    this.router.navigate(['/drive/drive-config']);
     this.store.setSideTab('drive-config');
   }
 }

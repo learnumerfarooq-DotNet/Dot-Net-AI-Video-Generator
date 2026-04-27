@@ -1,45 +1,92 @@
-<div class="page-content">
-  <section class="panel">
-    <header class="panel-header">
-      <h2>Memory Approval Queue</h2>
-      <i class="fa-solid fa-user-shield"></i>
-    </header>
+<div class="h-full flex flex-col bg-bg-main p-6">
+  <!-- Header -->
+  <header class="flex justify-between items-center mb-6 bg-card border border-border p-4 rounded-xl">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-lg bg-bg-card flex items-center justify-center text-xl">
+        <i class="fa-solid fa-user-shield text-accent-blue"></i>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-text-primary">Review Queue</h2>
+        <div class="text-sm text-text-secondary mt-1">
+          Suggestions awaiting human approval
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="px-4 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 font-bold rounded-lg flex items-center gap-2">
+        <i class="fa-solid fa-bell"></i> {{ memoryStore.reviewQueue().length }} Pending
+      </div>
+    </div>
+  </header>
 
-    <div class="approval-grid" *ngIf="memoryStore.reviewQueue().length; else emptyReview">
-      <article class="approval-card" *ngFor="let item of memoryStore.reviewQueue()">
+  <!-- Review Queue List -->
+  <div class="flex-1 overflow-y-auto mb-6">
+    <div class="space-y-4" *ngIf="memoryStore.reviewQueue().length; else emptyReview">
+      
+      <article class="bg-card border border-border rounded-xl p-5 flex flex-col gap-4 shadow-sm" *ngFor="let item of memoryStore.reviewQueue()">
+        <div class="flex justify-between items-start">
+          <div class="flex items-center gap-3">
+            <span class="px-2 py-1 bg-bg-card border border-border rounded text-xs font-bold uppercase"
+                  [ngClass]="item.scope === 'Global' ? 'text-accent-blue' : 'text-accent-green'">
+              {{ item.scope }}
+            </span>
+            <span class="font-medium text-text-secondary" *ngIf="item.agentKey">{{ item.agentKey }}</span>
+          </div>
+          <div class="text-xs text-text-secondary">{{ item.createdAt | date:'medium' }}</div>
+        </div>
+
         <ng-container [formGroup]="getForm(item)">
-          <label class="field">
-            <span>Memory Title</span>
-            <input formControlName="title" />
-          </label>
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium text-text-secondary">Proposed Title</label>
+            <input formControlName="title" class="w-full bg-bg-main border border-border rounded px-3 py-2 text-text-primary font-medium" />
+          </div>
 
-          <label class="field" style="margin-top:16px">
-            <span>Inferred Knowledge</span>
-            <textarea rows="5" formControlName="content"></textarea>
-          </label>
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium text-text-secondary">Inferred Knowledge</label>
+            <textarea rows="3" formControlName="content" class="w-full bg-bg-main border border-border rounded px-3 py-2 text-text-primary text-sm resize-y"></textarea>
+          </div>
         </ng-container>
 
-        <div class="item-meta" style="margin-top:12px">
-          {{ item.agentKey || 'Global' }} &bull; {{ item.tags.join(', ') }} &bull; {{ item.createdAt | date:'MMM d' }}
-        </div>
-
-        <div class="button-group" style="margin-top:16px">
-          <button type="button" class="primary-button" (click)="approve(item)"
-                  [disabled]="!getForm(item).valid">
-            <i class="fa-solid fa-check"></i> Approve
-          </button>
-          <button type="button" class="danger-button" (click)="reject(item)">
-            <i class="fa-solid fa-trash"></i> Reject
-          </button>
+        <div class="flex justify-between items-center mt-2 border-t border-border pt-4">
+          <div class="text-sm text-text-secondary flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-accent-blue"></i>
+            Reason: <span class="text-text-primary">New pattern detected during recent execution.</span>
+          </div>
+          <div class="flex gap-3">
+            <button class="px-4 py-2 border border-border rounded text-accent-red hover:bg-red-500/10 font-medium flex items-center gap-2 transition-colors" (click)="reject(item)">
+              <i class="fa-solid fa-xmark"></i> Reject
+            </button>
+            <button class="px-4 py-2 bg-accent-green text-white rounded hover:bg-green-600 font-medium flex items-center gap-2 transition-colors shadow-sm" (click)="approve(item)" [disabled]="!getForm(item).valid" [class.opacity-50]="!getForm(item).valid">
+              <i class="fa-solid fa-check"></i> Approve
+            </button>
+          </div>
         </div>
       </article>
-    </div>
 
-    <ng-template #emptyReview>
-      <div class="empty-state">
-        <i class="fa-solid fa-clipboard-check"></i>
-        <p>No memories waiting for review.</p>
+    </div>
+  </div>
+
+  <!-- History Section -->
+  <div class="bg-card border border-border rounded-xl flex flex-col">
+    <button class="p-4 flex justify-between items-center text-text-primary hover:bg-bg-card-hover rounded-xl transition-colors font-medium" (click)="toggleHistory()">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>Review History</span>
       </div>
-    </ng-template>
-  </section>
+      <i class="fa-solid transition-transform duration-200" [ngClass]="showHistory ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+    </button>
+    <div class="px-4 pb-4" *ngIf="showHistory">
+      <div class="border-t border-border pt-4 text-sm text-text-secondary text-center italic">
+        History is currently empty.
+      </div>
+    </div>
+  </div>
+
+  <ng-template #emptyReview>
+    <div class="h-full flex flex-col items-center justify-center bg-card border border-border rounded-xl">
+      <i class="fa-solid fa-clipboard-check text-4xl text-text-secondary mb-4 opacity-50"></i>
+      <h3 class="text-lg font-bold text-text-primary mb-1">All Caught Up!</h3>
+      <p class="text-text-secondary text-sm">No new memory suggestions waiting for your review.</p>
+    </div>
+  </ng-template>
 </div>

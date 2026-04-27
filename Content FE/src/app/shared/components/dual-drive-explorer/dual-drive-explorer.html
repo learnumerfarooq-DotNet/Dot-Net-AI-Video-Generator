@@ -1,0 +1,29 @@
+<div class="dual-explorer-container">
+  <div class="explorer-pane left-pane">
+    <div class="pane-header">
+      <i class="fa-solid fa-file-import"></i>
+      <h3>{{ leftTitle }}</h3>
+      <span class="pane-badge">Source</span>
+    </div>
+    <div class="pane-content">
+      <app-drive-explorer [isAgentWorkspace]="true" [initialFolderName]="leftFolderName"></app-drive-explorer>
+    </div>
+  </div>
+
+  <div class="explorer-divider">
+    <div class="arrow-indicator">
+      <i class="fa-solid fa-angles-right"></i>
+    </div>
+  </div>
+
+  <div class="explorer-pane right-pane">
+    <div class="pane-header">
+      <i class="fa-solid fa-file-export"></i>
+      <h3>{{ rightTitle }}</h3>
+      <span class="pane-badge destination">Destination</span>
+    </div>
+    <div class="pane-content">
+      <app-drive-explorer [isAgentWorkspace]="true" [initialFolderName]="rightFolderName"></app-drive-explorer>
+    </div>
+  </div>
+</div>

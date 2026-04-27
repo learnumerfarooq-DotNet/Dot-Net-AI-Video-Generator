@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, Input } from '@angular/core';
 import { Router } from '@angular/router';
 import { ContentFactoryStore } from '../../core/store/content-factory.store';
 import { DriveStore } from './store/drive.store';
@@ -10,9 +10,13 @@ import { DriveStore } from './store/drive.store';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './drive-explorer.html',
-  styleUrl: './drive-explorer.css'
+  styleUrl: './drive-explorer.css',
+  providers: [DriveStore]
 })
 export class DriveExplorerComponent implements OnInit {
+  @Input() isAgentWorkspace = false;
+  @Input() initialFolderName: string | null = null;
+  
   protected readonly store = inject(ContentFactoryStore);
   protected readonly driveStore = inject(DriveStore);
   private readonly router = inject(Router);
@@ -20,15 +24,25 @@ export class DriveExplorerComponent implements OnInit {
   showNewFolderModal = false;
   showUploadModal = false;
   newFolderName = '';
-  selectedFile: File | null = null;
+  selectedLocalFile: File | null = null;
+  searchQuery = '';
 
   ngOnInit() {
+    if (this.store.workspace()) {
+      this.driveStore.hydrate(this.store.workspace()!);
+    }
+
     if (!this.driveStore.isDriveConfigured()) {
-      this.router.navigate(['/drive/config']);
+      this.router.navigate(['/drive/drive-config']);
       this.store.setSideTab('drive-config');
       return;
     }
-    this.driveStore.loadDriveFiles();
+    
+    if (this.initialFolderName) {
+      this.driveStore.navigateToFolderByName(this.initialFolderName);
+    } else {
+      this.driveStore.loadDriveFiles();
+    }
   }
 
   getFileIcon(type: string): string {
@@ -56,20 +70,18 @@ export class DriveExplorerComponent implements OnInit {
   }
 
   async confirmUpload() {
-    if (this.selectedFile) {
-      await this.driveStore.uploadDriveFile(this.selectedFile);
-      this.selectedFile = null;
+    if (this.selectedLocalFile) {
+      await this.driveStore.uploadDriveFile(this.selectedLocalFile);
+      this.selectedLocalFile = null;
       this.showUploadModal = false;
     }
   }
 
   onItemClick(item: any) {
-    const type = item.type || item.Type;
-    const id = item.id || item.Id;
-    const name = item.name || item.Name;
-    
-    if (type === 'folder') {
-      this.driveStore.navigateToFolder(id, name);
+    if (item.isFolder || item.mimeType === 'application/vnd.google-apps.folder') {
+      this.driveStore.navigateToFolder(item.id, item.name);
+    } else {
+      this.driveStore.setSelectedFile(item);
     }
   }
 
@@ -80,7 +92,7 @@ export class DriveExplorerComponent implements OnInit {
   onFileSelected(event: any) {
     const file = event.target.files?.[0];
     if (file) {
-      this.selectedFile = file;
+      this.selectedLocalFile = file;
     }
   }
 
@@ -89,11 +101,37 @@ export class DriveExplorerComponent implements OnInit {
     this.driveStore.downloadDriveFile(item);
   }
 
+  deleteFile(event: Event, fileId: string) {
+    event.stopPropagation();
+    if (confirm('Are you sure you want to delete this item?')) {
+      this.driveStore.deleteDriveFile(fileId);
+    }
+  }
+
+  startPipeline(event: Event, item: any) {
+    event.stopPropagation();
+    this.driveStore.startVideoPipeline(item.id, item.name);
+  }
+
   goBack() {
     const breadcrumbs = this.driveStore.breadcrumbs();
     if (breadcrumbs.length > 1) {
       const parent = breadcrumbs[breadcrumbs.length - 2];
       this.driveStore.navigateToFolder(parent.id, parent.name);
     }
+  }
+
+  toggleViewMode() {
+    const current = this.driveStore.viewMode();
+    this.driveStore.setViewMode(current === 'grid' ? 'list' : 'grid');
+  }
+
+  setSortBy(sort: 'name' | 'modified' | 'size') {
+    this.driveStore.setSortBy(sort);
+  }
+
+  get filteredFiles() {
+    const q = this.searchQuery.toLowerCase();
+    return this.driveStore.driveFiles().filter(f => f.name.toLowerCase().includes(q));
   }
 }

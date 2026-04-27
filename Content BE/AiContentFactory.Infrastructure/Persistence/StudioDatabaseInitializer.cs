@@ -1,5 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using AiContentFactory.Infrastructure.Security;
+using AiContentFactory.Infrastructure.Decisions;
+using AiContentFactory.Domain.Errors;
+using AiContentFactory.Domain.Brain;
+using AiContentFactory.Domain.Memory;
+using AiContentFactory.Domain.Pipeline;
+using AiContentFactory.Domain.Decisions;
+using AiContentFactory.Domain.Agents;
+using AiContentFactory.Domain.Memory.AgentMemories;
 
 namespace AiContentFactory.Infrastructure.Persistence;
 
@@ -24,8 +32,8 @@ public static class StudioDatabaseInitializer
             Console.WriteLine($"[DB] Could not list tables: {ex.Message}");
         }
 
-        await dbContext.Database.EnsureCreatedAsync(cancellationToken);
-        Console.WriteLine("[DB] Schema ensured.");
+        await dbContext.Database.MigrateAsync(cancellationToken);
+        Console.WriteLine("[DB] Migrations applied.");
         
         await EnsureAgentSchemaAsync(dbContext, cancellationToken);
         await MigrateLegacyMemoriesAsync(dbContext, cancellationToken);
@@ -33,34 +41,99 @@ public static class StudioDatabaseInitializer
         await MigrateAgentConnectionsAsync(dbContext, encryption, cancellationToken);
         await CleanupAgentSchemaAsync(dbContext, cancellationToken);
 
-        if (await dbContext.Agents.AnyAsync(cancellationToken))
-        {
-            return;
-        }
-
         var now = DateTimeOffset.UtcNow;
 
-        var agents = SeedAgents(now);
-        var connections = SeedConnections(now);
-        var usages = SeedUsage(agents, now);
-        var globalMemories = SeedGlobalMemories(now);
-        var agentMemories = SeedAgentMemories(now);
-        var videos = SeedVideos(now);
-        var publications = SeedPublications(videos, now);
-        var schedules = SeedSchedules(now);
-        var runs = SeedRuns(now);
-        var messages = SeedChatMessages(now);
+        List<StudioAgentEntity> agents;
+        if (!await dbContext.Agents.AnyAsync(cancellationToken))
+        {
+            agents = SeedAgents(now);
+            var connections = SeedConnections(now);
+            var usages = SeedUsage(agents, now);
+            var globalMemories = SeedGlobalMemories(now);
+            var agentMemories = SeedAgentMemories(now);
+            var videos = SeedVideos(now);
+            var publications = SeedPublications(videos, now);
+            var schedules = SeedSchedules(now);
+            var runs = SeedRuns(now);
+            var messages = SeedChatMessages(now);
 
-        await dbContext.Agents.AddRangeAsync(agents, cancellationToken);
-        await dbContext.AgentConnections.AddRangeAsync(connections, cancellationToken);
-        await dbContext.AgentUsages.AddRangeAsync(usages, cancellationToken);
-        await dbContext.GlobalMemories.AddRangeAsync(globalMemories, cancellationToken);
-        await dbContext.AgentMemories.AddRangeAsync(agentMemories, cancellationToken);
-        await dbContext.Videos.AddRangeAsync(videos, cancellationToken);
-        await dbContext.Publications.AddRangeAsync(publications, cancellationToken);
-        await dbContext.ScheduleJobs.AddRangeAsync(schedules, cancellationToken);
-        await dbContext.AgentRuns.AddRangeAsync(runs, cancellationToken);
-        await dbContext.ChatMessages.AddRangeAsync(messages, cancellationToken);
+            await dbContext.Agents.AddRangeAsync(agents, cancellationToken);
+            await dbContext.AgentConnections.AddRangeAsync(connections, cancellationToken);
+            await dbContext.AgentUsages.AddRangeAsync(usages, cancellationToken);
+            await dbContext.GlobalMemories.AddRangeAsync(globalMemories, cancellationToken);
+            await dbContext.AgentMemories.AddRangeAsync(agentMemories, cancellationToken);
+            await dbContext.Videos.AddRangeAsync(videos, cancellationToken);
+            await dbContext.Publications.AddRangeAsync(publications, cancellationToken);
+            await dbContext.ScheduleJobs.AddRangeAsync(schedules, cancellationToken);
+            await dbContext.AgentRuns.AddRangeAsync(runs, cancellationToken);
+            await dbContext.ChatMessages.AddRangeAsync(messages, cancellationToken);
+        }
+        else
+        {
+            agents = await dbContext.Agents.AsNoTracking().ToListAsync(cancellationToken);
+        }
+
+        // V2 Seeding
+        if (!await dbContext.RetryPolicies.AnyAsync(cancellationToken))
+        {
+            var policies = agents.Select(a => new RetryPolicy 
+            { 
+                Id = Guid.NewGuid(), 
+                AgentKey = a.Key, 
+                MaxRetries = 3, 
+                BackoffSeconds = new() { 30, 120, 300 }, 
+                LastUpdated = now 
+            });
+            await dbContext.RetryPolicies.AddRangeAsync(policies, cancellationToken);
+        }
+
+        if (!await dbContext.CircuitBreakerStates.AnyAsync(cancellationToken))
+        {
+            var cbStates = agents.Select(a => new CircuitBreakerState 
+            { 
+                Id = Guid.NewGuid(), 
+                AgentKey = a.Key, 
+                State = "Closed", 
+                Threshold = 3, 
+                PauseMinutes = 10 
+            });
+            await dbContext.CircuitBreakerStates.AddRangeAsync(cbStates, cancellationToken);
+        }
+
+        if (!await dbContext.BrainStates.AnyAsync(cancellationToken))
+        {
+            var brainState = new BrainState 
+            { 
+                Id = Guid.NewGuid(), 
+                Status = BrainStatus.Idle, 
+                CurrentTickNumber = 0, 
+                GlobalMemoryVersion = "1.0",
+                LastTickAt = now,
+                AgentHealthMap = new Dictionary<string, AgentHealthStatus>()
+            };
+            await dbContext.BrainStates.AddAsync(brainState, cancellationToken);
+        }
+
+        if (!await dbContext.AgentLocalMemories.AnyAsync(cancellationToken))
+        {
+            var localMemories = agents.Select(a => new AgentLocalMemory 
+            { 
+                Id = Guid.NewGuid(), 
+                AgentKey = a.Key, 
+                AgentDisplayName = a.Name,
+                ConfigJson = "{}",
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.AgentLocalMemories.AddRangeAsync(localMemories, cancellationToken);
+        }
+
+        // Seed Prompt Templates
+        if (!await dbContext.PromptTemplates.AnyAsync(cancellationToken))
+        {
+            await dbContext.PromptTemplates.AddRangeAsync(DefaultPrompts.GetDefaults(), cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

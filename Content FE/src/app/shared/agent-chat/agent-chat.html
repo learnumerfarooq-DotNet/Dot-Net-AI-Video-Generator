@@ -1,55 +1,83 @@
-<div class="chat-section">
-  <div class="chat-history" #chatHistoryRef>
-    <div class="message"
-         *ngFor="let msg of agentsStore.activeAgentMessages()"
-         [class.user]="msg.role === 'user'"
-         [class.assistant]="msg.role === 'assistant'">
-      <div class="item-title" style="margin-bottom:4px;font-size:0.8rem;opacity:0.7">
-        {{ msg.role === 'user' ? 'You' : agent.name }}
+<div class="agent-workspace-container">
+  <!-- TOP: Active Video Context -->
+  <div class="agent-workspace-header" *ngIf="agentsStore.activeJob()">
+    <div class="video-context-card">
+      <div class="video-icon"><i class="fa-solid fa-clapperboard"></i></div>
+      <div class="video-details">
+        <div class="video-filename">{{ agentsStore.activeJob()?.fileName }}</div>
+        <div class="video-stage">Processing: {{ agentsStore.activeJob()?.currentStage }}</div>
       </div>
-      {{ msg.content }}
-      <div class="item-meta" style="margin-top:8px;text-align:right;font-size:0.7rem">
-        {{ msg.createdAt | date:'h:mm a' }}
+      <div class="video-progress-pill" *ngIf="agentsStore.activeJob()?.currentProgress">
+        {{ agentsStore.activeJob()?.currentProgress }}%
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-section">
+    <div class="chat-history" #chatHistoryRef>
+      <!-- ... existing messages ... -->
+      <div class="message"
+           *ngFor="let msg of agentsStore.activeAgentMessages()"
+           [class.user]="msg.role === 'user'"
+           [class.assistant]="msg.role === 'assistant'">
+        <div class="item-title" style="margin-bottom:4px;font-size:0.8rem;opacity:0.7">
+          {{ msg.role === 'user' ? 'You' : agent.name }}
+        </div>
+        {{ msg.content }}
+        <div class="item-meta" style="margin-top:8px;text-align:right;font-size:0.7rem">
+          {{ msg.createdAt | date:'h:mm a' }}
+        </div>
+      </div>
+
+      <!-- Streaming message block -->
+      <div class="message assistant" *ngIf="agentsStore.isThinking() || agentsStore.streamingContent()">
+        <div class="item-title" style="margin-bottom:4px;font-size:0.8rem;opacity:0.7">
+          {{ agent.name }}
+        </div>
+        <div class="thinking-loader" *ngIf="agentsStore.isThinking()">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+        <div class="streaming-content">
+          {{ agentsStore.streamingContent() }}
+        </div>
+      </div>
+
+      <div class="connect-guard" *ngIf="agent.requiresConnection && !agent.isConnected">
+        <i class="fa-solid fa-plug-circle-xmark"></i>
+        <h3>Action Required</h3>
+        <p>Configure the API provider in Settings to enable live agent interactions.</p>
+        <button class="primary-button"
+                (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)">
+          Configure API
+        </button>
       </div>
     </div>
 
-    <!-- Streaming message block -->
-    <div class="message assistant" *ngIf="agentsStore.isThinking() || agentsStore.streamingContent()">
-      <div class="item-title" style="margin-bottom:4px;font-size:0.8rem;opacity:0.7">
-        {{ agent.name }}
-      </div>
-      <div class="thinking-loader" *ngIf="agentsStore.isThinking()">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-      </div>
-      <div class="streaming-content">
-        {{ agentsStore.streamingContent() }}
-      </div>
-    </div>
-
-    <div class="connect-guard" *ngIf="agent.requiresConnection && !agent.isConnected">
-      <i class="fa-solid fa-plug-circle-xmark"></i>
-      <h3>Action Required</h3>
-      <p>Configure the API provider in Settings to enable live agent interactions.</p>
-      <button class="primary-button"
-              (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)">
-        Configure API
+    <div class="chat-composer" *ngIf="!agent.requiresConnection || agent.isConnected">
+      <textarea rows="1"
+                [ngModel]="agentsStore.chatDraft()"
+                (ngModelChange)="agentsStore.updateChatDraft($event)"
+                [placeholder]="'Message ' + agent.name + '...'"
+                (keydown.enter)="onKeyDown($event)"></textarea>
+      <button type="button" class="send-button"
+              [disabled]="agentsStore.sendingChat() || !agentsStore.chatDraft()"
+              (click)="sendMessage()">
+        <i class="fa-solid"
+           [class.fa-paper-plane]="!agentsStore.sendingChat()"
+           [class.fa-spinner]="agentsStore.sendingChat()"
+           [class.fa-spin]="agentsStore.sendingChat()"></i>
       </button>
     </div>
   </div>
 
-  <div class="chat-composer" *ngIf="!agent.requiresConnection || agent.isConnected">
-    <textarea rows="1"
-              [ngModel]="agentsStore.chatDraft()"
-              (ngModelChange)="agentsStore.updateChatDraft($event)"
-              [placeholder]="'Message ' + agent.name + '...'"
-              (keydown.enter)="onKeyDown($event)"></textarea>
-    <button type="button" class="send-button"
-            [disabled]="agentsStore.sendingChat() || !agentsStore.chatDraft()"
-            (click)="sendMessage()">
-      <i class="fa-solid"
-         [class.fa-paper-plane]="!agentsStore.sendingChat()"
-         [class.fa-spinner]="agentsStore.sendingChat()"
-         [class.fa-spin]="agentsStore.sendingChat()"></i>
-    </button>
+  <!-- BOTTOM: Google Drive Folder Context -->
+  <div class="agent-workspace-footer" *ngIf="agentsStore.targetFolder()">
+    <div class="folder-context-bar" 
+         (click)="rootStore.setSection('drive'); rootStore.setSideTab('drive-explorer')">
+      <i class="fa-solid fa-folder-tree"></i>
+      <span class="folder-label">Workspace:</span>
+      <span class="folder-path">{{ agentsStore.targetFolder()?.path }}</span>
+      <i class="fa-solid fa-arrow-up-right-from-square ms-auto"></i>
+    </div>
   </div>
 </div>

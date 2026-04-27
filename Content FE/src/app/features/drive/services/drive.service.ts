@@ -12,6 +12,21 @@ export interface DriveFile {
   date: string;
 }
 
+export type DriveFileDto = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  modifiedTime: string;
+  parents: string[];
+  webViewLink: string;
+  iconLink: string;
+  thumbnailLink?: string;
+  isFolder: boolean;
+  pipelineJobId?: string;
+  pipelineStatus?: string;
+};
+
 export interface OAuthExchangeResult {
   accessToken:  string;
   refreshToken: string;
@@ -66,5 +81,29 @@ export class DriveService {
   /** Verifies the saved Drive credentials by making a live backend check. */
   testConnection(): Observable<ConnectionTestResult> {
     return this.api.postAction<ConnectionTestResult>(ENDPOINTS.DRIVE, 'connection/test', {});
+  }
+
+  deleteFile(fileId: string): Observable<void> {
+    return this.api.delete<void>(ENDPOINTS.DRIVE, `file/${fileId}`);
+  }
+
+  moveFile(fileId: string, targetFolderId: string): Observable<void> {
+    return this.api.postAction<void>(ENDPOINTS.DRIVE, `file/${fileId}/move`, { targetFolderId });
+  }
+
+  getFolderMapping(): Observable<any> {
+    return this.api.getAction<any>(ENDPOINTS.DRIVE, 'mapping');
+  }
+
+  createMissingFolders(): Observable<void> {
+    return this.api.postAction<void>(ENDPOINTS.DRIVE, 'mapping/create-missing', {});
+  }
+
+  getStorageInfo(): Observable<any> {
+    return this.api.getAction<any>(ENDPOINTS.DRIVE, 'storage-info');
+  }
+
+  startPipeline(fileId: string, fileName: string): Observable<any> {
+    return this.api.postAction<any>(ENDPOINTS.DRIVE, 'pipeline/start', { fileId, fileName });
   }
 }

@@ -4,12 +4,13 @@ import { RouterLink } from '@angular/router';
 import { ContentFactoryStore } from '../../../core/store/content-factory.store';
 import { AgentsStore } from '../store/agents.store';
 import { AgentChatComponent } from '../../../shared/agent-chat/agent-chat';
+import { DriveExplorerComponent } from '../../drive/drive-explorer';
 
 @Component({
   selector: 'app-linkedin-agent',
-  imports: [CommonModule, RouterLink, AgentChatComponent],
+  imports: [CommonModule, RouterLink, AgentChatComponent, DriveExplorerComponent],
   templateUrl: './linkedin-agent.html',
-  styleUrl: './linkedin-agent.css'
+  styleUrls: ['./linkedin-agent.css', '../agent-workspace-shared.css']
 })
 export class LinkedinAgentComponent {
   protected readonly agentsStore = inject(AgentsStore);

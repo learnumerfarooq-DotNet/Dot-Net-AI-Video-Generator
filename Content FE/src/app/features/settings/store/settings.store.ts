@@ -45,6 +45,9 @@ type SettingsState = {
   testingDrive: boolean;
   testResult: { success: boolean; message: string; details?: string } | null;
   status: string;
+  activeAgentKey: string | null;
+  globalSettings: any | null;
+  savingGlobal: boolean;
 };
 
 const initialState: SettingsState = {
@@ -58,7 +61,10 @@ const initialState: SettingsState = {
   testingAgentKey: null,
   testingDrive: false,
   testResult: null,
-  status: 'Ready'
+  status: 'Ready',
+  activeAgentKey: 'main-brain',
+  globalSettings: null,
+  savingGlobal: false
 };
 
 export const SettingsStore = signalStore(
@@ -155,7 +161,7 @@ export const SettingsStore = signalStore(
     async testAgentConnection(agentKey: string) {
       patchState(store, { testingAgentKey: agentKey, testResult: null, status: 'Testing agent connection...' });
       try {
-        const result = await firstValueFrom(settingsSvc.testAgentConnection(agentKey));
+        const result: { success: boolean; message: string; details?: string } = await firstValueFrom(settingsSvc.testAgentConnection(agentKey));
         patchState(store, { testingAgentKey: null, testResult: result, status: result.success ? 'Agent connection OK.' : 'Agent connection failed.' });
       } catch (error) {
         patchState(store, { testingAgentKey: null, testResult: { success: false, message: 'Test failed', details: readError(error) }, status: 'Agent test error.' });
@@ -165,7 +171,7 @@ export const SettingsStore = signalStore(
     async testDriveConnection() {
       patchState(store, { testingDrive: true, testResult: null, status: 'Testing Drive connection...' });
       try {
-        const result = await firstValueFrom(settingsSvc.testDriveConnection());
+        const result: { success: boolean; message: string; details?: string } = await firstValueFrom(settingsSvc.testDriveConnection());
         patchState(store, { testingDrive: false, testResult: result, status: result.success ? 'Drive connection OK.' : 'Drive connection failed.' });
       } catch (error) {
         patchState(store, { testingDrive: false, testResult: { success: false, message: 'Test failed', details: readError(error) }, status: 'Drive test error.' });
@@ -174,6 +180,56 @@ export const SettingsStore = signalStore(
 
     clearTestResult() {
       patchState(store, { testResult: null });
+    },
+
+    setActiveAgent(key: string) {
+      patchState(store, { activeAgentKey: key });
+    },
+
+    async loadAgentSettings(agentKey: string) {
+      patchState(store, { status: `Loading settings for ${agentKey}...` });
+      try {
+        const settings = await firstValueFrom(settingsSvc.loadAgentSettings(agentKey));
+        patchState(store, (state) => ({
+          agentSettings: state.agentSettings.map(a => a.agentKey === agentKey ? settings : a),
+          settingsDrafts: { ...state.settingsDrafts, [agentKey]: toSettingsRequest(settings) },
+          status: 'Settings loaded.'
+        }));
+      } catch (error) {
+        patchState(store, { status: `Failed to load agent settings: ${readError(error)}` });
+      }
+    },
+
+    async resetAgentSettings(agentKey: string) {
+      if (!confirm(`Are you sure you want to reset settings for ${agentKey}?`)) return;
+      
+      patchState(store, { status: `Resetting ${agentKey}...` });
+      try {
+        await firstValueFrom(settingsSvc.resetAgentSettings(agentKey));
+        await this.loadAgentSettings(agentKey);
+        patchState(store, { status: `${agentKey} reset to defaults.` });
+      } catch (error) {
+        patchState(store, { status: `Reset failed: ${readError(error)}` });
+      }
+    },
+
+    async loadGlobalSettings() {
+      try {
+        const global = await firstValueFrom(settingsSvc.loadGlobalSettings());
+        patchState(store, { globalSettings: global });
+      } catch (error) {
+        console.error('Failed to load global settings', error);
+      }
+    },
+
+    async saveGlobalSettings(settings: any) {
+      patchState(store, { savingGlobal: true, status: 'Saving global settings...' });
+      try {
+        await firstValueFrom(settingsSvc.saveGlobalSettings(settings));
+        patchState(store, { globalSettings: settings, savingGlobal: false, status: 'Global settings saved.' });
+      } catch (error) {
+        patchState(store, { savingGlobal: false, status: `Global save failed: ${readError(error)}` });
+      }
     }
   }))
 );
@@ -245,6 +301,7 @@ function toSettingsRequest(agent: AgentSettings): SaveAgentSettingsRequest {
     providerName: agent.providerName, modelName: agent.modelName, baseUrl: agent.baseUrl,
     apiKey: agent.apiKey, clientId: agent.clientId, clientSecret: agent.clientSecret,
     refreshToken: agent.refreshToken, sourceVideoPath: agent.sourceVideoPath,
+    sourceVideoFolderId: agent.sourceVideoFolderId, sourceVideoFolderName: agent.sourceVideoFolderName,
     storageFolderId: agent.storageFolderId, storageFolderName: agent.storageFolderName,
     storageFolderPath: agent.storageFolderPath, storageFolderUrl: agent.storageFolderUrl,
     useOpenRouter: agent.useOpenRouter, openRouterModel: agent.openRouterModel,
@@ -255,7 +312,8 @@ function toSettingsRequest(agent: AgentSettings): SaveAgentSettingsRequest {
 function emptySettingsDraft(): SaveAgentSettingsRequest {
   return {
     providerName: '', modelName: '', baseUrl: '', apiKey: '', clientId: '', clientSecret: '',
-    refreshToken: '', sourceVideoPath: '', storageFolderId: '', storageFolderName: '',
+    refreshToken: '', sourceVideoPath: '', sourceVideoFolderId: '', sourceVideoFolderName: '',
+    storageFolderId: '', storageFolderName: '',
     storageFolderPath: '', storageFolderUrl: '', useOpenRouter: false,
     openRouterModel: '', openRouterApiKey: '', notes: ''
   };
@@ -273,8 +331,11 @@ function mergeSettingsDraft<K extends keyof SaveAgentSettingsRequest>(
 
 function applyDriveMetadata(draft: SaveAgentSettingsRequest): SaveAgentSettingsRequest {
   const metadata = deriveDriveMetadata(draft.storageFolderId || draft.storageFolderPath, draft.storageFolderUrl);
+  const sourceMetadata = deriveDriveMetadata(draft.sourceVideoFolderId || draft.sourceVideoPath, '');
+  
   return {
     ...draft,
+    sourceVideoFolderName: sourceMetadata.storageFolderName || draft.sourceVideoFolderName,
     storageFolderName: metadata.storageFolderName || draft.storageFolderName,
     storageFolderPath: metadata.storageFolderPath || draft.storageFolderPath,
     storageFolderUrl: metadata.storageFolderUrl || draft.storageFolderUrl

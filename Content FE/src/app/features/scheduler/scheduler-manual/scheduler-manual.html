@@ -1,86 +1,151 @@
-<div class="page-content scheduler-container">
-  <div class="scheduler-layout">
-    <!-- Create Form -->
-    <form class="panel" [formGroup]="scheduleForm" (ngSubmit)="submit()">
-      <header class="panel-header">
-        <h2>Create New Schedule</h2>
-        <i class="fa-solid fa-calendar-plus"></i>
-      </header>
+<div class="h-full flex flex-col bg-bg-main p-6 gap-6">
 
-      <div class="form-group">
-        <label class="field">
-          <span>Schedule Name <span class="required">*</span></span>
-          <input formControlName="name" placeholder="e.g. Weekly Review"
-                 [class.invalid]="scheduleForm.get('name')?.invalid && scheduleForm.get('name')?.touched" />
-          <span class="field-error" *ngIf="scheduleForm.get('name')?.invalid && scheduleForm.get('name')?.touched">Name is required</span>
-        </label>
-
-        <label class="field">
-          <span>Target Agent <span class="required">*</span></span>
+  <!-- Create Schedule Form -->
+  <div class="premium-card flex flex-col overflow-hidden shrink-0 animate-fade-in">
+    <div class="p-6 border-b border-border-soft font-bold flex items-center justify-between bg-surface-strong/10">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+          <i class="fa-solid fa-calendar-plus"></i>
+        </div>
+        <h3 class="text-lg font-bold">New Operation Sequence</h3>
+      </div>
+      <span class="text-[10px] font-black text-text-muted uppercase tracking-widest bg-bg-deep/50 px-3 py-1.5 rounded-lg border border-border-soft">Manual Override</span>
+    </div>
+    
+    <form [formGroup]="scheduleForm" (ngSubmit)="submit()" class="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+      
+      <!-- Name & Agent -->
+      <div class="flex flex-col gap-6">
+        <div class="flex flex-col gap-2">
+          <label>Sequence Identity</label>
+          <input formControlName="name" type="text" placeholder="e.g., Weekly Tech News Generation">
+        </div>
+        
+        <div class="flex flex-col gap-2">
+          <label>Designated Executor</label>
           <select formControlName="agentKey">
-            <option value="main-brain">Main Brain</option>
-            <option value="trend-agent">Trend Agent</option>
-            <option value="script-agent">Script Agent</option>
-            <option value="video-generation-agent">Video Generator</option>
-            <option value="shorts-agent-1">Shorts Agent 1</option>
-            <option value="shorts-agent-2">Shorts Agent 2</option>
-            <option value="youtube-agent">YouTube Agent</option>
-            <option value="tiktok-agent">TikTok Agent</option>
-            <option value="instagram-agent">Instagram Agent</option>
-            <option value="facebook-agent">Facebook Agent</option>
-            <option value="linkedin-agent">LinkedIn Agent</option>
+            <option *ngFor="let agent of agentsStore.agents()" [value]="agent.key">{{ agent.name }}</option>
           </select>
-        </label>
-
-        <label class="field">
-          <span>Trigger Expression (CRON or Interval) <span class="required">*</span></span>
-          <input formControlName="trigger" placeholder="0 0 * * *"
-                 [class.invalid]="scheduleForm.get('trigger')?.invalid && scheduleForm.get('trigger')?.touched" />
-          <span class="field-error" *ngIf="scheduleForm.get('trigger')?.invalid && scheduleForm.get('trigger')?.touched">Trigger is required</span>
-        </label>
-
-        <label class="field">
-          <span>Operational Notes</span>
-          <textarea rows="4" formControlName="notes" placeholder="Additional execution parameters..."></textarea>
-        </label>
-
-        <label class="checkbox-field">
-          <input type="checkbox" formControlName="isEnabled" />
-          <div class="item-info">
-            <div class="item-title">Enable Immediately</div>
-            <div class="item-meta">Schedule will run at its next trigger time</div>
-          </div>
-        </label>
+        </div>
       </div>
 
-      <button type="submit" class="primary-button" [disabled]="!scheduleForm.valid || schedulerStore.creatingManualSchedule()">
-        <i class="fa-solid" [class.fa-plus]="!schedulerStore.creatingManualSchedule()"
-           [class.fa-spinner]="schedulerStore.creatingManualSchedule()"
-           [class.fa-spin]="schedulerStore.creatingManualSchedule()"></i>
-        {{ schedulerStore.creatingManualSchedule() ? 'Creating...' : 'Register Job' }}
-      </button>
+      <!-- Trigger & Notes -->
+      <div class="flex flex-col gap-6">
+        <div class="flex gap-4">
+          <div class="flex flex-col gap-2 w-1/3">
+            <label>Trigger Pulse</label>
+            <select formControlName="triggerType">
+              <option *ngFor="let type of triggerTypes" [value]="type">{{ type }}</option>
+            </select>
+          </div>
+          
+          <div class="flex flex-col gap-2 flex-1">
+            <label>Temporal Hash (Time/Cron)</label>
+            <input *ngIf="scheduleForm.get('triggerType')?.value === 'Once'" formControlName="triggerValue" type="datetime-local">
+            <input *ngIf="scheduleForm.get('triggerType')?.value !== 'Once'" formControlName="triggerValue" type="text" class="font-mono" placeholder="* * * * *">
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label>Sequence Protocol (Notes)</label>
+          <input formControlName="notes" type="text" placeholder="Optional operation details...">
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="lg:col-span-2 flex justify-between items-center pt-8 border-t border-border-soft mt-2">
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <div class="relative">
+            <input formControlName="isEnabled" type="checkbox" class="sr-only peer">
+            <div class="w-10 h-6 bg-surface-soft rounded-full peer peer-checked:bg-success transition-all border border-border-soft"></div>
+            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-all peer-checked:left-5"></div>
+          </div>
+          <span class="text-sm font-bold text-text-muted group-hover:text-text-main transition-colors uppercase tracking-widest">Activate on Commit</span>
+        </label>
+        
+        <button type="submit" [disabled]="!scheduleForm.valid || schedulerStore.creatingManualSchedule()" class="premium-button flex items-center gap-3">
+          <i *ngIf="schedulerStore.creatingManualSchedule()" class="fa-solid fa-circle-notch fa-spin"></i>
+          <i *ngIf="!schedulerStore.creatingManualSchedule()" class="fa-solid fa-plus"></i>
+          Commit Sequence
+        </button>
+      </div>
     </form>
-
-    <!-- Active Jobs -->
-    <section class="panel">
-      <header class="panel-header">
-        <h2>Active Manual Jobs</h2>
-        <i class="fa-solid fa-list-check"></i>
-      </header>
-      <div class="jobs-list">
-        <article class="job-card" *ngFor="let job of schedulerStore.manualSchedules()">
-          <div class="job-info">
-            <div class="job-title">{{ job.name }}</div>
-            <div class="job-meta">
-              <span class="job-status" [class.status-active]="job.isEnabled" [class.status-disabled]="!job.isEnabled">
-                {{ job.status }}
-              </span>
-              {{ job.agentKey }} &bull; {{ job.trigger }}
-            </div>
-          </div>
-          <i class="fa-solid fa-chevron-right" style="opacity:0.5"></i>
-        </article>
-      </div>
-    </section>
   </div>
+
+  <!-- Existing Schedules Table -->
+  <div class="premium-card flex-1 flex flex-col min-h-0 animate-fade-in" style="animation-delay: 0.1s">
+    <div class="p-6 border-b border-border-soft font-bold flex justify-between items-center bg-surface-strong/10">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shadow-inner">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+        <h3 class="text-lg font-bold">Active Protocol Registry</h3>
+      </div>
+      <span class="text-[10px] font-black text-text-muted uppercase tracking-widest bg-bg-deep/50 px-3 py-1.5 rounded-lg border border-border-soft">{{ schedulerStore.manualSchedules().length }} Registered</span>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto custom-scrollbar">
+      <table class="w-full text-left text-sm border-collapse">
+        <thead class="bg-bg-deep/80 backdrop-blur-md sticky top-0 z-10 border-b border-border-soft">
+          <tr>
+            <th class="p-6 text-[10px] font-black text-text-muted uppercase tracking-widest">Operation Identity</th>
+            <th class="p-6 text-[10px] font-black text-text-muted uppercase tracking-widest">Designated Node</th>
+            <th class="p-6 text-[10px] font-black text-text-muted uppercase tracking-widest">Pulse Hash</th>
+            <th class="p-6 text-[10px] font-black text-text-muted uppercase tracking-widest">Operational Status</th>
+            <th class="p-6 text-[10px] font-black text-text-muted uppercase tracking-widest">Next Pulse</th>
+            <th class="p-6 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Control</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let schedule of schedulerStore.manualSchedules()" class="group border-b border-border-soft/50 hover:bg-surface-soft/20 transition-all">
+            <td class="p-6">
+              <div class="font-bold text-text-main group-hover:text-primary transition-colors">{{ schedule.name }}</div>
+              <div class="text-[10px] text-text-muted font-medium mt-1 uppercase tracking-tighter">{{ schedule.notes || 'No protocol notes' }}</div>
+            </td>
+            <td class="p-6">
+              <span class="px-3 py-1 bg-bg-deep border border-border-soft rounded-lg text-[10px] font-black text-accent uppercase tracking-widest shadow-sm">
+                {{ schedule.agentKey }}
+              </span>
+            </td>
+            <td class="p-6">
+              <code class="text-xs font-mono text-primary-strong bg-primary/5 px-2 py-1 rounded">{{ schedule.trigger }}</code>
+            </td>
+            <td class="p-6">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" [class.bg-success]="schedule.isEnabled" [class.bg-text-muted]="!schedule.isEnabled" [class.animate-pulse]="schedule.isEnabled"></span>
+                <span class="text-[10px] font-black uppercase tracking-widest" [class.text-success]="schedule.isEnabled" [class.text-text-muted]="!schedule.isEnabled">
+                  {{ schedule.isEnabled ? 'Active' : 'Offline' }}
+                </span>
+              </div>
+            </td>
+            <td class="p-6">
+              <div class="text-xs font-bold text-text-main">{{ schedule.nextRunAt || 'Pending...' }}</div>
+              <div class="text-[9px] text-text-muted uppercase font-black mt-0.5">Last: {{ schedule.lastRunAt || 'Never' }}</div>
+            </td>
+            <td class="p-6 text-right">
+              <div class="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <button (click)="runNow(schedule.id)" class="w-9 h-9 flex items-center justify-center rounded-xl bg-success/10 text-success border border-success/20 hover:bg-success hover:text-white transition-all" title="Manual Execute">
+                  <i class="fa-solid fa-play text-xs"></i>
+                </button>
+                <button (click)="toggleSchedule(schedule.id)" class="w-9 h-9 flex items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all" [title]="schedule.isEnabled ? 'Deactivate' : 'Activate'">
+                  <i class="fa-solid" [ngClass]="schedule.isEnabled ? 'fa-pause' : 'fa-play'"></i>
+                </button>
+                <button (click)="deleteSchedule(schedule.id)" class="w-9 h-9 flex items-center justify-center rounded-xl bg-danger/10 text-danger border border-danger/20 hover:bg-danger hover:text-white transition-all" title="Purge Sequence">
+                  <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="!schedulerStore.manualSchedules().length" class="flex flex-col items-center justify-center py-20 text-text-muted">
+        <div class="w-20 h-20 rounded-full bg-bg-deep flex items-center justify-center mb-6 border border-border-soft">
+          <i class="fa-solid fa-calendar-xmark text-3xl opacity-20"></i>
+        </div>
+        <p class="font-black uppercase tracking-widest text-xs">No Manual Protocols Configured</p>
+      </div>
+    </div>
+  </div>
+
 </div>

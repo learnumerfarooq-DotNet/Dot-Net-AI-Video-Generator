@@ -34,8 +34,9 @@ import { SchedulerQueueComponent }  from './features/scheduler/scheduler-queue/s
 
 // Drive
 import { DriveExplorerComponent } from './features/drive/drive-explorer';
-import { DriveConfigComponent }        from './features/drive/drive-config';
+import { DriveMappingComponent }  from './features/drive/drive-mapping';
 import { DriveOAuthCallbackComponent } from './features/drive/drive-oauth-callback';
+import { DriveConfigComponent } from './features/drive/drive-config';
 
 // Settings
 import { SettingsMainComponent } from './features/settings/settings-main/settings-main';
@@ -82,8 +83,9 @@ export const routes: Routes = [
 
   // Drive
   { path: 'drive/explorer',        component: DriveExplorerComponent        },
-  { path: 'drive/config',          component: DriveConfigComponent          },
+  { path: 'drive/mapping',         component: DriveMappingComponent         },
   { path: 'drive/oauth/callback',  component: DriveOAuthCallbackComponent   },
+  { path: 'drive/drive-config',    component: DriveConfigComponent          },
 
   // Fallback
   { path: '**', redirectTo: 'dashboard/overview' }

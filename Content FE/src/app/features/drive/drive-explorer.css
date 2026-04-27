@@ -1,4 +1,12 @@
 /* Premium Drive Explorer Styles */
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
 .drive-container {
   display: flex;
   flex-direction: column;
@@ -111,7 +119,7 @@
   overflow-y: auto;
   padding: 0.5rem;
   position: relative;
-  min-height: 400px;
+  min-height: 0;
 }
 
 .explorer-grid {

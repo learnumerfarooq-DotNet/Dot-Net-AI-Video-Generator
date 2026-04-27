@@ -23,6 +23,8 @@ public sealed class StudioAgentEntity
     public DateTimeOffset? LastRunAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public string Notes { get; set; } = string.Empty;
+    public Guid? SystemPromptTemplateId { get; set; }
+    public string? DecisionOutputSchema { get; set; }
 }
 
 public sealed class StudioAgentUsageEntity
@@ -119,6 +121,8 @@ public sealed class StudioChatMessageEntity
     public string AgentKey { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+    public Guid? DecisionId { get; set; }
+    public bool IsStructuredOutput { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 

@@ -16,32 +16,30 @@ export class DriveConfigComponent {
   protected readonly store = inject(ContentFactoryStore);
   protected readonly driveStore = inject(DriveStore);
   private readonly router = inject(Router);
-  private lastValidatedConfigKey = '';
-
+  
   config = {
     clientId: '',
     clientSecret: '',
     refreshToken: '',
-    rootFolderId: ''
+    rootFolderId: '',
+    pollingInterval: 30,
+    autoCreateFolders: true
   };
 
+  showSecrets = false;
+
   constructor() {
-    // Populate form from store if available
     effect(() => {
       const saved = this.driveStore.driveConfig();
       if (saved) {
         this.config = {
-          clientId: saved.clientId || this.config.clientId,
-          clientSecret: saved.clientSecret || this.config.clientSecret,
+          clientId: saved.clientId || '',
+          clientSecret: saved.clientSecret || '',
           refreshToken: saved.refreshToken || '',
-          rootFolderId: saved.rootFolderId || ''
+          rootFolderId: saved.rootFolderId || '',
+          pollingInterval: saved.pollingInterval || 30,
+          autoCreateFolders: saved.autoCreateFolders ?? true
         };
-
-        const key = `${saved.clientId}|${saved.refreshToken}|${saved.rootFolderId}`;
-        if (saved.clientId?.trim() && saved.refreshToken?.trim() && key !== this.lastValidatedConfigKey) {
-          this.lastValidatedConfigKey = key;
-          void this.driveStore.testDriveConnection();
-        }
       }
     });
   }
@@ -51,12 +49,12 @@ export class DriveConfigComponent {
   }
 
   startOAuth() {
-    const clientId = this.config.clientId.trim();
-    if (!clientId) {
+    if (!this.config.clientId.trim()) {
       alert('Please enter a Client ID first.');
       return;
     }
 
+    const clientId = this.config.clientId.trim();
     const redirectUri = encodeURIComponent(this.redirectUri);
     const scope = encodeURIComponent('https://www.googleapis.com/auth/drive');
     const authUrl =
@@ -71,15 +69,17 @@ export class DriveConfigComponent {
     window.location.href = authUrl;
   }
 
-  copyUri() {
-    navigator.clipboard.writeText(this.redirectUri).then(() => {
-      // Visual feedback could be added here
-    });
-  }
-
   async saveConfig() {
     await this.driveStore.saveDriveConfig(this.config);
-    this.router.navigate(['/drive/explorer']);
-    this.store.setSideTab('drive-explorer');
+  }
+
+  async disconnect() {
+    if (confirm('Are you sure you want to disconnect Google Drive? This will clear your tokens.')) {
+      await this.driveStore.saveDriveConfig({ ...this.config, refreshToken: '' });
+    }
+  }
+
+  copyUri() {
+    navigator.clipboard.writeText(this.redirectUri);
   }
 }

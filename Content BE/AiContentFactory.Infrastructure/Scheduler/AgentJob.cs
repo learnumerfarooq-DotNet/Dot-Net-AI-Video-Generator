@@ -1,4 +1,6 @@
+using AiContentFactory.Application.Common;
 using AiContentFactory.Application.Studio;
+using AiContentFactory.Domain.Events;
 using AiContentFactory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +29,7 @@ public sealed class AgentJob(
 
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
-        var notifications = scope.ServiceProvider.GetRequiredService<IWorkspaceNotificationService>();
+        var emitter = scope.ServiceProvider.GetRequiredService<IRealtimeEventEmitter>();
         
         var job = await db.ScheduleJobs.FirstOrDefaultAsync(j => j.Id == jobId);
         if (job == null || !job.IsEnabled)
@@ -72,7 +74,7 @@ public sealed class AgentJob(
         }
 
         await db.SaveChangesAsync();
-        await notifications.NotifyAgentRunStartedAsync(run.Id, run.AgentKey, context.CancellationToken);
+        await emitter.EmitAgentRunStartedAsync(new AgentRunStartedPayload(run.AgentKey, run.Id, Guid.Empty), context.CancellationToken);
 
         try
         {
@@ -121,6 +123,6 @@ public sealed class AgentJob(
 
         run.ExecutionLog = masking.Scrub(run.ExecutionLog);
         await db.SaveChangesAsync();
-        await notifications.NotifyAgentRunCompletedAsync(run.Id, run.AgentKey, run.Status, context.CancellationToken);
+        await emitter.EmitAgentRunCompletedAsync(new AgentRunCompletedPayload(run.AgentKey, run.Id, run.Status, 0), context.CancellationToken);
     }
 }

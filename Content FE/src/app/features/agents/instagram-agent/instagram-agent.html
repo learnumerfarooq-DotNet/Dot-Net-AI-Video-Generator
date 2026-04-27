@@ -1,70 +1,47 @@
-<div class="agent-workspace" *ngIf="agentsStore.activeAgent() as agent">
-  <header class="agent-header">
-    <div class="agent-info">
-      <div class="agent-icon" style="color:#e1306c; border-color:rgba(225,48,108,0.25)">
-        <i class="fa-brands fa-instagram"></i>
+<ng-container *ngIf="agentsStore.activeAgent() as agent">
+  <div class="flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
+    <header class="flex justify-between items-center mb-4 bg-surface p-3 rounded-xl border border-border-soft shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <i class="fa-brands fa-instagram text-sm"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-bold">{{ agent.name }}</h2>
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider"
+                  [ngClass]="agent.isConnected ? 'bg-accent-green/10 text-accent-green border border-accent-green/20' : 'bg-surface-strong text-text-secondary border border-border-soft'">
+              {{ agent.isConnected ? 'Connected' : 'Idle' }}
+            </span>
+          </div>
+          <div class="text-[10px] text-text-secondary uppercase tracking-wider font-bold mt-0.5">Instagram Publishing • {{ agent.category }}</div>
+        </div>
       </div>
-      <div class="agent-name-stack">
-        <h2>{{ agent.name }}</h2>
-        <div class="agent-status">
-          <span class="status-dot" [class.active]="agent.isConnected"></span>
-          {{ agent.isConnected ? 'Connected' : 'Disconnected' }} &bull; Publishing Agent
+      <button (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)"
+              class="flex items-center gap-2 px-3 py-1.5 border border-border-soft rounded-lg text-xs font-bold text-text-secondary hover:text-text-primary hover:bg-bg-card-hover transition-all cursor-pointer">
+        <i class="fa-solid fa-sliders text-xs"></i> Configure
+      </button>
+    </header>
+
+    <div class="agent-layout-split">
+      <div class="workspace-left custom-scrollbar">
+        <div class="premium-card p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="fa-solid fa-folder-tree text-primary text-xs"></i>
+            <h3 class="text-[10px] font-black text-text-muted uppercase tracking-widest">Project Assets</h3>
+          </div>
+          <app-drive-explorer [isAgentWorkspace]="true"></app-drive-explorer>
+        </div>
+      </div>
+      <div class="workspace-right">
+        <div class="premium-card h-full flex flex-col overflow-hidden">
+          <div class="px-4 py-3 border-b border-border-soft shrink-0 flex items-center gap-2">
+            <i class="fa-solid fa-message text-primary text-[10px]"></i>
+            <span class="text-[10px] font-black text-text-muted uppercase tracking-widest">Chat</span>
+          </div>
+          <div class="flex-1 flex flex-col min-h-0 overflow-hidden">`n            <app-agent-chat [agent]="agent"></app-agent-chat>
+          </div>
         </div>
       </div>
     </div>
-    <button type="button" class="ghost-button" [routerLink]="'/settings/instagram-agent'">
-      <i class="fa-solid fa-sliders"></i>
-      <span>AI Settings</span>
-    </button>
-  </header>
-
-  <div class="agent-layout">
-    <app-agent-chat [agent]="agent"></app-agent-chat>
-
-    <aside class="detail-section">
-      <section class="detail-card">
-        <h3><i class="fa-brands fa-instagram"></i> Instagram Integration</h3>
-        <p style="font-size:0.875rem; color:var(--muted); line-height:1.6; margin:0 0 16px">
-          Ask this agent to walk you through connecting your Instagram account. The agent will guide you through OAuth setup and channel configuration via chat.
-        </p>
-        
-        <div class="capability-pill">Post Reels</div>
-        <div class="capability-pill">Stories</div>
-        <div class="capability-pill">Carousels</div>
-        <div class="capability-pill">Hashtags</div>
-      </section>
-
-      <section class="detail-card">
-        <h3><i class="fa-solid fa-lightbulb"></i> Try Asking</h3>
-        <div class="list-stack">
-                    <div class="list-item">
-            <div class="item-info">
-              <div class="item-meta">"Post a Reel from Drive"</div>
-            </div>
-          </div>          <div class="list-item">
-            <div class="item-info">
-              <div class="item-meta">"Schedule a Story"</div>
-            </div>
-          </div>          <div class="list-item">
-            <div class="item-info">
-              <div class="item-meta">"Connect Instagram account"</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="detail-card">
-        <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Runs</h3>
-        <div class="list-stack">
-          <div class="list-item" *ngFor="let run of agent.recentRuns">
-            <div class="item-info">
-              <div class="item-title">{{ run.title }}</div>
-              <div class="item-meta">{{ run.status }}</div>
-            </div>
-            <span class="item-meta">{{ run.queuedAt | date:'h:mm a' }}</span>
-          </div>
-        </div>
-      </section>
-    </aside>
   </div>
-</div>
+</ng-container>

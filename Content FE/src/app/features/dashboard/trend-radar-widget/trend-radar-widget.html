@@ -1,0 +1,30 @@
+<div class="premium-card p-6 animate-fade-in h-full" style="animation-delay: 0.4s">
+  <div class="flex justify-between items-center mb-8">
+    <div>
+      <h2 class="text-xl font-bold">Trend Radar</h2>
+      <p class="text-[10px] text-text-muted mt-1 uppercase tracking-widest font-black">Market Sentiment</p>
+    </div>
+    <span class="relative flex h-3 w-3">
+      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+      <span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+    </span>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let item of trendingTopics()" 
+         class="flex justify-between items-center p-4 rounded-2xl bg-bg-deep/30 border border-border-soft hover:bg-surface-soft/40 transition-all group">
+      <span class="text-sm font-bold group-hover:text-primary transition-colors">{{ item.topic }}</span>
+      <div class="flex items-center gap-3">
+        <span class="px-3 py-1 rounded-full text-[10px] font-black border border-border-soft shadow-inner" 
+              [ngClass]="getHeatColor(item.heat)">
+          {{ item.heat }}🔥
+        </span>
+        <div class="w-6 h-6 rounded bg-bg-deep flex items-center justify-center">
+          <i *ngIf="item.direction === 'up'" class="fa-solid fa-arrow-trend-up text-success text-xs"></i>
+          <i *ngIf="item.direction === 'down'" class="fa-solid fa-arrow-trend-down text-danger text-xs"></i>
+          <i *ngIf="item.direction === 'stable'" class="fa-solid fa-minus text-text-muted text-xs"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

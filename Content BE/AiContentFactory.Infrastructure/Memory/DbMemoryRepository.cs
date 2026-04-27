@@ -52,12 +52,14 @@ public sealed class DbMemoryRepository(
             m.Id,
             Enum.Parse<MemoryScope>(m.Scope, true),
             m.AgentKey,
-            m.Content,
-            m.Tags,
-            m.CreatedAt,
-            m.UpdatedAt,
-            m.ExpiresAt,
-            1.0f)).ToArray();
+            m.Content)
+        {
+            Tags = m.Tags.ToList(),
+            CreatedAt = m.CreatedAt,
+            UpdatedAt = m.UpdatedAt,
+            ExpiresAt = m.ExpiresAt,
+            Score = 1.0f
+        }).ToArray();
     }
 
     public async Task<IReadOnlyList<MemorySuggestion>> GetPendingSuggestionsAsync(CancellationToken cancellationToken)
@@ -72,8 +74,8 @@ public sealed class DbMemoryRepository(
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var globalSuggestions = globalRows.Select(m => new MemorySuggestion(m.Id, MemoryScope.Global, null, m.Content, "Pending review", MemorySuggestionStatus.Pending, m.CreatedAt));
-        var agentSuggestions = agentRows.Select(m => new MemorySuggestion(m.Id, MemoryScope.Local, m.AgentKey, m.Content, "Pending review", MemorySuggestionStatus.Pending, m.CreatedAt));
+        var globalSuggestions = globalRows.Select(m => new MemorySuggestion(m.Id, MemoryScope.Global, null, m.Content, "Pending review") { Status = MemorySuggestionStatus.Pending, CreatedAt = m.CreatedAt });
+        var agentSuggestions = agentRows.Select(m => new MemorySuggestion(m.Id, MemoryScope.Local, m.AgentKey, m.Content, "Pending review") { Status = MemorySuggestionStatus.Pending, CreatedAt = m.CreatedAt });
 
         return globalSuggestions.Concat(agentSuggestions).OrderByDescending(s => s.CreatedAt).ToArray();
     }
@@ -125,7 +127,13 @@ public sealed class DbMemoryRepository(
             global.Status = "Approved"; global.UpdatedAt = now; global.ApprovedAt = now;
             global.ExpiresAt = expiresAt;
             await dbContext.SaveChangesAsync(cancellationToken);
-            return new MemoryEntry(global.Id, MemoryScope.Global, null, global.Content, global.Tags, global.CreatedAt, global.UpdatedAt, global.ExpiresAt);
+            return new MemoryEntry(global.Id, MemoryScope.Global, null, global.Content)
+            {
+                Tags = global.Tags.ToList(),
+                CreatedAt = global.CreatedAt,
+                UpdatedAt = global.UpdatedAt,
+                ExpiresAt = global.ExpiresAt
+            };
         }
 
         var agent = await dbContext.AgentMemories.FirstOrDefaultAsync(m => m.Id == suggestionId, cancellationToken);
@@ -135,7 +143,13 @@ public sealed class DbMemoryRepository(
             agent.Status = "Approved"; agent.UpdatedAt = now; agent.ApprovedAt = now;
             agent.ExpiresAt = expiresAt;
             await dbContext.SaveChangesAsync(cancellationToken);
-            return new MemoryEntry(agent.Id, MemoryScope.Local, agent.AgentKey, agent.Content, agent.Tags, agent.CreatedAt, agent.UpdatedAt, agent.ExpiresAt);
+            return new MemoryEntry(agent.Id, MemoryScope.Local, agent.AgentKey, agent.Content)
+            {
+                Tags = agent.Tags.ToList(),
+                CreatedAt = agent.CreatedAt,
+                UpdatedAt = agent.UpdatedAt,
+                ExpiresAt = agent.ExpiresAt
+            };
         }
 
         return null;
@@ -181,6 +195,13 @@ public sealed class DbMemoryRepository(
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return new MemoryEntry(id, MemoryScope.Local, agentName, content, tags, now, now, expiresAt, 1.0f);
+        return new MemoryEntry(id, MemoryScope.Local, agentName, content)
+        {
+            Tags = tags.ToList(),
+            CreatedAt = now,
+            UpdatedAt = now,
+            ExpiresAt = expiresAt,
+            Score = 1.0f
+        };
     }
 }

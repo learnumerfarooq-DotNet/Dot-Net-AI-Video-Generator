@@ -1,16 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { SettingsAgentComponent } from '../settings-agent/settings-agent';
-import { DriveConfigComponent } from '../../drive/drive-config';
 import { ContentFactoryStore } from '../../../core/store/content-factory.store';
 import { AgentsStore } from '../../agents/store/agents.store';
 import { SettingsStore } from '../store/settings.store';
+import { DriveStore } from '../../drive/store/drive.store';
 
 @Component({
   selector: 'app-settings-main',
   standalone: true,
-  imports: [CommonModule, SettingsAgentComponent, DriveConfigComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './settings-main.html',
   styleUrl: './settings-main.css'
 })
@@ -18,30 +18,62 @@ export class SettingsMainComponent implements OnInit {
   protected readonly store = inject(ContentFactoryStore);
   protected readonly agentsStore = inject(AgentsStore);
   protected readonly settingsStore = inject(SettingsStore);
+  protected readonly driveStore = inject(DriveStore);
   private readonly route = inject(ActivatedRoute);
   
-  activeTab: 'agents' | 'storage' = 'agents';
+  activeSection: 'agents' | 'global' = 'agents';
+  showSecrets: Record<string, boolean> = {};
+
+  providers = ['OpenRouter', 'Gemini', 'OpenAI', 'Claude'];
 
   ngOnInit() {
+    this.settingsStore.loadGlobalSettings();
     const agentParam = this.route.snapshot.paramMap.get('agent');
     if (agentParam) {
-      this.store.setActiveAgent(agentParam);
+      this.settingsStore.setActiveAgent(agentParam);
     }
   }
 
-  setTab(tab: 'agents' | 'storage') {
-    this.activeTab = tab;
+  get activeAgent() {
+    const key = this.settingsStore.activeAgentKey();
+    return this.settingsStore.agentSettings().find(s => s.agentKey === key);
+  }
+
+  get activeDraft() {
+    const key = this.settingsStore.activeAgentKey();
+    return key ? this.settingsStore.settingsDraft(key) : null;
   }
 
   selectAgent(key: string) {
-    this.store.setActiveAgent(key);
+    this.settingsStore.setActiveAgent(key);
   }
 
-  get agents() {
-    return this.store.agents();
+  toggleSecret(key: string) {
+    this.showSecrets[key] = !this.showSecrets[key];
   }
 
-  get activeAgentKey() {
-    return this.agentsStore.activeAgentKey();
+  async saveSettings() {
+    const key = this.settingsStore.activeAgentKey();
+    if (key) {
+      await this.settingsStore.saveAgentSettings(key, () => this.rootStoreRefresh());
+    }
+  }
+
+  async resetSettings() {
+    const key = this.settingsStore.activeAgentKey();
+    if (key) {
+      await this.settingsStore.resetAgentSettings(key);
+    }
+  }
+
+  async testConnection() {
+    const key = this.settingsStore.activeAgentKey();
+    if (key) {
+      await this.settingsStore.testAgentConnection(key);
+    }
+  }
+
+  private async rootStoreRefresh() {
+    // Refresh global state if needed
   }
 }

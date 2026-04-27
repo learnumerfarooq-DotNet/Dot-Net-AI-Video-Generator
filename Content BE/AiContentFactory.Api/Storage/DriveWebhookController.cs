@@ -1,4 +1,6 @@
+using AiContentFactory.Application.Common;
 using AiContentFactory.Application.Studio;
+using AiContentFactory.Domain.Events;
 using AiContentFactory.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -10,7 +12,7 @@ namespace AiContentFactory.Api.Storage;
 public sealed class DriveWebhookController(
     IStudioWorkspaceStore store,
     IGoogleDriveService driveService,
-    IWorkspaceNotificationService notifications,
+    IRealtimeEventEmitter emitter,
     ILogger<DriveWebhookController> logger) : ControllerBase
 {
     [HttpPost("notify")]
@@ -43,7 +45,7 @@ public sealed class DriveWebhookController(
             var files = await driveService.ListFilesAsync(settings, null, cancellationToken);
             
             // Notify the UI that assets might have changed
-            await notifications.NotifyVideoStageChangedAsync(Guid.Empty, "Discovered", cancellationToken);
+            await emitter.EmitDriveFileDetectedAsync(new DriveFileDetectedPayload(resourceId, "Webhook Update", "Multiple"), cancellationToken);
             
             return Ok();
         }

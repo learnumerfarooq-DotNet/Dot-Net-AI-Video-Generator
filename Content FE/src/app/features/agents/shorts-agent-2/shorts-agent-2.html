@@ -1,48 +1,100 @@
 <ng-container *ngIf="agentsStore.activeAgent() as agent">
-  <div class="agent-workspace">
-    <header class="agent-header">
-      <div class="agent-info">
-        <div class="agent-icon"><i class="fa-solid fa-robot"></i></div>
-        <div class="agent-name-stack">
-          <h2>{{ agent.name }}</h2>
-          <div class="agent-status">
-            <span class="status-dot" [class.active]="agent.isConnected"></span>
-            {{ agent.isConnected ? 'Connected' : 'Disconnected' }} &bull; {{ agent.category }}
+  <div class="flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
+    <!-- Header Bar -->
+    <header class="flex justify-between items-center mb-4 bg-surface p-3 rounded-xl border border-border-soft shrink-0">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-lg">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-3">
+            <h2 class="text-base font-bold text-text-main">{{ agent.name }}</h2>
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest"
+                  [ngClass]="agent.isConnected ? 'bg-accent-green/10 text-accent-green border border-accent-green/20' : 'bg-surface-strong text-text-secondary border border-border-soft'">
+              {{ agent.isConnected ? 'Connected' : 'Idle' }}
+            </span>
+          </div>
+          <div class="text-[10px] text-text-muted mt-0.5 uppercase tracking-widest font-bold">
+            Shorts Architect &bull; <span class="text-primary">{{ agent.category }}</span>
           </div>
         </div>
       </div>
-      <button type="button" class="ghost-button"
-              (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)">
-        <i class="fa-solid fa-sliders"></i><span>Configure</span>
-      </button>
+      
+      <div class="flex items-center gap-2">
+        <button (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)" 
+                class="flex items-center gap-2 px-3 py-1.5 border border-border-soft rounded-lg text-xs font-bold text-text-secondary hover:text-text-primary hover:bg-bg-card-hover transition-all cursor-pointer">
+          <i class="fa-solid fa-sliders text-xs"></i>
+          <span>Configure</span>
+        </button>
+      </div>
     </header>
-    <div class="agent-layout">
-      <app-agent-chat [agent]="agent"></app-agent-chat>
-      <aside class="detail-section">
-        <section class="detail-card">
-          <h3><i class="fa-solid fa-microchip"></i> Intelligence</h3>
-          <div class="item-info">
-            <div class="item-title">{{ agent.providerName || 'N/A' }}</div>
-            <div class="item-meta">{{ agent.modelName || 'No model' }}</div>
+
+    <div class="agent-layout-split">
+      <!-- LEFT: Workspace -->
+      <div class="workspace-left custom-scrollbar">
+        <!-- Pipeline Monitor -->
+        <div class="premium-card p-5">
+           <div class="flex items-center gap-3 mb-4">
+             <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+               <i class="fa-solid fa-microchip"></i>
+             </div>
+             <h3 class="text-xs font-black uppercase tracking-widest opacity-70">Active Pipeline Matrix</h3>
+           </div>
+           <app-processing-videos></app-processing-videos>
+        </div>
+
+        <!-- Dual Directory Workspace -->
+        <div class="premium-card p-6">
+          <div class="flex items-center gap-3 mb-6">
+             <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+               <i class="fa-solid fa-network-wired"></i>
+             </div>
+             <h3 class="text-sm font-black uppercase tracking-widest opacity-70">Shorts Storage Bridge</h3>
           </div>
-          <div style="margin-top:16px">
-            <span class="capability-pill" *ngFor="let cap of agent.capabilitySummary.split(',')">{{ cap.trim() }}</span>
+          
+          <div class="rounded-2xl border border-border-soft bg-bg-deep/20 overflow-hidden flex-1 min-h-[400px]">
+            <app-dual-drive-explorer 
+              leftTitle="Raw Video Source" 
+              leftFolderName="Raw Video"
+              rightTitle="Upload Video Destination"
+              rightFolderName="Upload Video">
+            </app-dual-drive-explorer>
           </div>
-        </section>
-        <section class="detail-card">
-          <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Runs</h3>
-          <div class="list-stack">
-            <div class="list-item" *ngFor="let run of agent.recentRuns">
-              <div class="item-info">
-                <div class="item-title">{{ run.title }}</div>
-                <div class="item-meta">{{ run.status }}</div>
-              </div>
-              <span class="item-meta">{{ run.queuedAt | date:'h:mm a' }}</span>
+        </div>
+
+        <!-- Active Job Context -->
+        <div class="premium-card p-6" *ngIf="agentsStore.activeJob() as job">
+          <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-video text-primary"></i>
+              <h3 class="text-sm font-bold">{{ job.fileName }}</h3>
+            </div>
+            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-primary/10 text-primary">{{ job.status }}</span>
+          </div>
+          <div class="stage-flow flex gap-2">
+            <div class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-border-soft" 
+                 *ngFor="let stage of job.stages" 
+                 [class.bg-success/20]="stage.status === 'Completed'"
+                 [class.text-success]="stage.status === 'Completed'"
+                 [class.bg-primary/20]="stage.status === 'Running'"
+                 [class.text-primary]="stage.status === 'Running'">
+              {{ stage.stageType }}
             </div>
           </div>
-        </section>
-      </aside>
+        </div>
+      </div>
+
+      <!-- RIGHT: Chat Intelligence -->
+      <div class="workspace-right">
+        <div class="premium-card h-full flex flex-col overflow-hidden">
+          <div class="px-4 py-3 border-b border-border-soft shrink-0 flex items-center gap-2">
+            <i class="fa-solid fa-message text-primary text-[10px]"></i>
+            <span class="text-[10px] font-black uppercase tracking-widest text-text-muted">Operations Channel</span>
+          </div>
+          <div class="flex-1 flex flex-col min-h-0 overflow-hidden">`n            <app-agent-chat [agent]="agent"></app-agent-chat>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </ng-container>
-

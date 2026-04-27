@@ -47,7 +47,8 @@ const TAB_TO_PATH: Record<string, string> = {
   'settings-linkedin-agent':          '/settings/linkedin-agent',
   // Drive
   'drive-explorer': '/drive/explorer',
-  'drive-config':   '/drive/config'
+  'drive-mapping':  '/drive/mapping',
+  'drive-config':   '/drive/drive-config'
 };
 
 @Component({

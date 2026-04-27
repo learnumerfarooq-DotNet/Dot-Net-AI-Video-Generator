@@ -1,0 +1,24 @@
+<div class="card p-6 bg-card border border-border rounded-xl h-full">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-xl font-bold text-text-primary flex items-center gap-2">
+      Error Monitor
+      <span class="px-2 py-0.5 rounded text-xs font-bold border" [ngClass]="errors24h() > 0 ? 'text-accent-red bg-red-500/10 border-red-500/20' : 'text-accent-green bg-green-500/10 border-green-500/20'">
+        {{ errors24h() }} errors in 24h
+      </span>
+    </h2>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngFor="let err of recentErrors()" class="p-3 border border-border rounded-lg bg-bg-card hover:bg-bg-card-hover transition-colors">
+      <div class="flex justify-between items-start mb-1">
+        <span class="text-sm font-medium text-text-primary">{{ err.component }}</span>
+        <span class="text-xs text-text-secondary">{{ err.time }}</span>
+      </div>
+      <div class="text-xs text-accent-red">{{ err.message }}</div>
+    </div>
+    
+    <div *ngIf="recentErrors().length === 0" class="text-center py-6 text-text-secondary text-sm">
+      No recent errors detected. System is healthy.
+    </div>
+  </div>
+</div>

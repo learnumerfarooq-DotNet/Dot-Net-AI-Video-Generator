@@ -40,6 +40,10 @@ export class ApiService {
     return this.http.get<T>(this.getUrl(endpoint, actionPath), { params });
   }
 
+  putAction<T>(endpoint: string, actionPath: string, body?: unknown): Observable<T> {
+    return this.http.put<T>(this.getUrl(endpoint, actionPath), body);
+  }
+
   getBlob(url: string): Observable<Blob> {
     return this.http.get(this.getUrl(url), { responseType: 'blob' });
   }

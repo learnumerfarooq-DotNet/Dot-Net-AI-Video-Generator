@@ -1,0 +1,43 @@
+<div class="premium-card p-6 animate-fade-in h-full" style="animation-delay: 0.5s">
+  <div class="flex justify-between items-center mb-8">
+    <div>
+      <h2 class="text-xl font-bold">Upcoming Uploads</h2>
+      <p class="text-[10px] text-text-muted mt-1 uppercase tracking-widest font-black">{{ upcomingUploads().length }} Sequences Pending</p>
+    </div>
+    <div class="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
+      <i class="fa-solid fa-cloud-arrow-up text-primary"></i>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <div *ngFor="let upload of upcomingUploads()" 
+         class="group p-5 rounded-2xl bg-bg-deep/40 border border-border-soft hover:bg-surface-soft/40 transition-all relative overflow-hidden">
+      <div class="flex items-center justify-between relative z-10">
+        <div>
+          <div class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">{{ upload.title }}</div>
+          <div class="flex gap-3">
+            <span class="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-border-soft bg-bg-deep/50" 
+                  [ngClass]="getPlatformColor(upload.platform)">
+              {{ upload.platform }}
+            </span>
+            <span class="text-text-muted text-[10px] font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              {{ upload.time }}
+            </span>
+          </div>
+        </div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/5 px-2 py-1 rounded-lg">
+          {{ upload.status }}
+        </div>
+      </div>
+      <div class="absolute bottom-0 left-0 h-0.5 bg-primary/20 w-0 group-hover:w-full transition-all duration-500"></div>
+    </div>
+    
+    <div *ngIf="upcomingUploads().length === 0" class="text-center py-12">
+      <div class="w-12 h-12 rounded-full bg-bg-deep flex items-center justify-center mx-auto mb-4 border border-border-soft opacity-50">
+        <i class="fa-solid fa-check text-success"></i>
+      </div>
+      <p class="text-xs font-bold text-text-muted uppercase tracking-widest">Queue Clear</p>
+    </div>
+  </div>
+</div>

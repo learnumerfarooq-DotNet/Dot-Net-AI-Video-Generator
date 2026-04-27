@@ -1,4 +1,6 @@
+using AiContentFactory.Application.Common;
 using AiContentFactory.Application.Studio;
+using AiContentFactory.Domain.Events;
 using AiContentFactory.Application.ContentFactory;
 using AiContentFactory.Domain.Memory;
 using AiContentFactory.Infrastructure.Security;
@@ -14,7 +16,7 @@ public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
     private readonly IMemoryRepository memoryRepository;
     private readonly IJsonFileStore jsonStore;
     private readonly IMemoryCache cache;
-    private readonly IWorkspaceNotificationService notifications;
+    private readonly IRealtimeEventEmitter emitter;
     private readonly ISchedulerFactory schedulerFactory;
     private readonly IEncryptionService encryption;
     private readonly IMaskingService masking;
@@ -24,7 +26,7 @@ public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
         IMemoryRepository memoryRepository,
         IJsonFileStore jsonStore,
         IMemoryCache cache,
-        IWorkspaceNotificationService notifications,
+        IRealtimeEventEmitter emitter,
         ISchedulerFactory schedulerFactory,
         IEncryptionService encryption,
         IMaskingService masking)
@@ -33,7 +35,7 @@ public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
         this.memoryRepository = memoryRepository;
         this.jsonStore = jsonStore;
         this.cache = cache;
-        this.notifications = notifications;
+        this.emitter = emitter;
         this.schedulerFactory = schedulerFactory;
         this.encryption = encryption;
         this.masking = masking;
@@ -238,7 +240,7 @@ public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
         if (agent is not null) { agent.LastRunAt = now; agent.UpdatedAt = now; }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await notifications.NotifyAgentRunCompletedAsync(runId, agentKey, "Succeeded", cancellationToken);
+        await emitter.EmitAgentRunCompletedAsync(new AgentRunCompletedPayload(agentKey, runId, "Succeeded", durationMs), cancellationToken);
         
         cache.Remove("dashboard_summary");
         cache.Remove($"budget_{agentKey}");
@@ -350,7 +352,7 @@ public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
 
         await dbContext.SaveChangesAsync(cancellationToken);
         var result = ToVideoDto(video);
-        await notifications.NotifyVideoStageChangedAsync(result.Id, result.Stage, cancellationToken);
+        await emitter.EmitStageCompletedAsync(new StageCompletedPayload(result.Id, result.Stage, 1.0), cancellationToken);
         cache.Remove("dashboard_summary");
         return result;
     }
@@ -473,7 +475,7 @@ public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
         cache.Remove("dashboard_summary");
         
         var dto = ToVideoDto(video);
-        await notifications.NotifyVideoStageChangedAsync(id, video.Stage, cancellationToken);
+        await emitter.EmitStageCompletedAsync(new StageCompletedPayload(id, video.Stage, 1.0), cancellationToken);
         return dto;
     }
 

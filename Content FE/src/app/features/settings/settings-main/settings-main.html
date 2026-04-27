@@ -1,62 +1,212 @@
-<div class="settings-container">
-  <header class="settings-header">
-    <div class="header-content">
-      <h1>Platform Settings</h1>
-      <p class="subtitle">Configure your AI agents and storage providers</p>
-    </div>
-    
-    <nav class="settings-tabs">
-      <button 
-        [class.active]="activeTab === 'agents'" 
-        (click)="setTab('agents')">
-        <i class="fas fa-robot"></i> AI Agents
-      </button>
-      <button 
-        [class.active]="activeTab === 'storage'" 
-        (click)="setTab('storage')">
-        <i class="fas fa-hdd"></i> Storage & Drive
-      </button>
-    </nav>
-  </header>
+<div class="h-full flex flex-col bg-bg-main p-6 gap-6 overflow-hidden">
 
-  <main class="settings-content">
-    <!-- AGENTS TAB -->
-    <div *ngIf="activeTab === 'agents'" class="agents-tab-layout">
-      <aside class="agents-sidebar">
-        <h3>Agents</h3>
-        <div class="agent-list">
-          <button 
-            *ngFor="let agent of agents"
-            class="agent-item"
-            [class.active]="activeAgentKey === agent.key"
-            (click)="selectAgent(agent.key)">
-            <span class="agent-icon">{{ agent.name[0] }}</span>
-            <div class="agent-info">
-              <span class="name">{{ agent.name }}</span>
-              <span class="status" [class.connected]="agent.isConnected">
-                {{ agent.isConnected ? 'Connected' : 'Setup Required' }}
-              </span>
+  <!-- Main Settings Layout -->
+  <div class="flex-1 flex gap-6 overflow-hidden">
+    
+    <!-- Left Sidebar: Agent Selector -->
+    <aside class="w-72 flex flex-col gap-4 shrink-0">
+      <div class="bg-card border border-border rounded-xl flex flex-col overflow-hidden">
+        <div class="p-4 border-b border-border bg-bg-deep flex justify-between items-center">
+          <h3 class="font-bold text-text-primary text-sm uppercase tracking-wider">Agents</h3>
+          <span class="text-[10px] bg-bg-main px-2 py-0.5 rounded border border-border text-text-secondary">{{ agentsStore.agents().length }}</span>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto max-h-[calc(100vh-350px)] custom-scrollbar">
+          <button *ngFor="let agent of agentsStore.agents()" 
+                  (click)="selectAgent(agent.key)"
+                  class="w-full p-4 flex items-center gap-3 hover:bg-bg-card-hover transition-all text-left border-b border-border-soft last:border-0"
+                  [ngClass]="settingsStore.activeAgentKey() === agent.key ? 'bg-primary-soft border-l-4 border-l-primary' : 'bg-transparent border-l-4 border-l-transparent'">
+            <div class="w-8 h-8 rounded-lg bg-bg-main border border-border-soft flex items-center justify-center shrink-0">
+              <i class="fa-solid text-primary" [ngClass]="agent.icon || 'fa-robot'"></i>
+            </div>
+            <div class="overflow-hidden">
+              <div class="text-sm font-bold text-text-primary truncate">{{ agent.name }}</div>
+              <div class="text-[10px] text-text-secondary truncate uppercase">{{ agent.category }}</div>
             </div>
           </button>
         </div>
-      </aside>
 
-      <section class="agent-form-area">
-        <div *ngIf="activeAgentKey; else selectAgentPrompt">
-          <app-settings-agent></app-settings-agent>
-        </div>
-        <ng-template #selectAgentPrompt>
-          <div class="empty-state">
-            <i class="fas fa-mouse-pointer"></i>
-            <p>Select an agent from the list to configure credentials</p>
+        <!-- Global Settings Toggle -->
+        <button (click)="activeSection = 'global'"
+                class="w-full p-4 flex items-center gap-3 bg-bg-deep border-t border-border hover:bg-bg-card-hover transition-all text-left"
+                [ngClass]="activeSection === 'global' ? 'bg-primary-soft text-primary border-l-4 border-l-primary' : 'text-text-primary border-l-4 border-l-transparent'">
+          <i class="fa-solid fa-earth-americas text-lg"></i>
+          <span class="text-sm font-bold uppercase tracking-wide">Global Config</span>
+        </button>
+      </div>
+
+      <!-- Quick Info Card -->
+      <div class="bg-card border border-border rounded-xl p-5 space-y-4">
+        <h4 class="text-xs font-bold text-text-secondary uppercase tracking-widest">Setup Status</h4>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-text-secondary">API Connections</span>
+            <span class="text-accent-green font-bold">9/11</span>
           </div>
-        </ng-template>
-      </section>
-    </div>
+          <div class="w-full h-1.5 bg-bg-main rounded-full overflow-hidden border border-border">
+            <div class="h-full bg-accent-green" style="width: 82%"></div>
+          </div>
+          <p class="text-[10px] text-text-secondary italic">All creation agents are currently connected.</p>
+        </div>
+      </div>
+    </aside>
 
-    <!-- STORAGE TAB -->
-    <div *ngIf="activeTab === 'storage'" class="storage-tab-layout">
-      <app-drive-config></app-drive-config>
-    </div>
-  </main>
+    <!-- Right Content: Configuration Panel -->
+    <main class="flex-1 bg-card border border-border rounded-xl flex flex-col overflow-hidden shadow-sm">
+      
+      <!-- Section Header -->
+      <header class="p-6 border-b border-border flex justify-between items-center shrink-0 bg-bg-main/20">
+        <div class="flex items-center gap-4">
+          <div *ngIf="activeSection === 'agents'" class="w-12 h-12 rounded-xl bg-accent-blue/10 text-accent-blue flex items-center justify-center text-xl shadow-inner border border-accent-blue/10">
+            <i class="fa-solid" [ngClass]="activeAgent?.icon || 'fa-robot'"></i>
+          </div>
+          <div *ngIf="activeSection === 'global'" class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl shadow-inner border border-purple-500/10">
+            <i class="fa-solid fa-earth-americas"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-text-primary">
+              {{ activeSection === 'agents' ? activeAgent?.name : 'Global Infrastructure' }}
+            </h2>
+            <p class="text-sm text-text-secondary">{{ activeSection === 'agents' ? activeAgent?.description : 'System-wide defaults and paths' }}</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <button *ngIf="activeSection === 'agents'" (click)="testConnection()" class="px-4 py-2 border border-border rounded-lg text-sm font-bold text-text-primary hover:bg-bg-card-hover transition-all">
+            <i class="fa-solid fa-vial mr-2"></i> Test
+          </button>
+          <button (click)="saveSettings()" class="px-6 py-2 bg-accent-blue text-white rounded-lg font-bold text-sm hover:bg-blue-600 transition-all shadow-lg">
+            Save Changes
+          </button>
+        </div>
+      </header>
+
+      <!-- Panel Body -->
+      <div class="flex-1 overflow-y-auto p-8">
+        
+        <!-- Agent Specific Settings -->
+        <div *ngIf="activeSection === 'agents' && activeDraft" class="space-y-10 max-w-4xl">
+          
+          <!-- AI Model Section -->
+          <section class="space-y-6">
+            <div class="flex items-center gap-3">
+              <span class="w-8 h-[1px] bg-border"></span>
+              <h4 class="text-xs font-bold text-text-secondary uppercase tracking-[0.2em]">AI Configuration</h4>
+              <span class="flex-1 h-[1px] bg-border"></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-text-secondary">Provider</label>
+                <select [(ngModel)]="activeDraft.providerName" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors">
+                  <option *ngFor="let p of providers" [value]="p">{{ p }}</option>
+                </select>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-text-secondary">Model Name</label>
+                <input type="text" [(ngModel)]="activeDraft.modelName" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors" placeholder="e.g. gpt-4o">
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-text-secondary">API Key</label>
+              <div class="relative">
+                <input [type]="showSecrets['apiKey'] ? 'text' : 'password'" [(ngModel)]="activeDraft.apiKey" class="w-full bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors" placeholder="sk-...">
+                <button (click)="toggleSecret('apiKey')" class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary">
+                  <i class="fa-solid" [ngClass]="showSecrets['apiKey'] ? 'fa-eye-slash' : 'fa-eye'"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-text-secondary">Base URL (Optional)</label>
+              <input type="text" [(ngModel)]="activeDraft.baseUrl" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors" placeholder="https://api.openai.com/v1">
+            </div>
+          </section>
+
+          <!-- Storage & Folders Section -->
+          <section class="space-y-6">
+            <div class="flex items-center gap-3">
+              <span class="w-8 h-[1px] bg-border"></span>
+              <h4 class="text-xs font-bold text-text-secondary uppercase tracking-[0.2em]">Storage & Pipeline</h4>
+              <span class="flex-1 h-[1px] bg-border"></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-text-secondary">Input Folder / Source Path</label>
+                <div class="flex gap-2">
+                  <input type="text" [(ngModel)]="activeDraft.sourceVideoPath" class="flex-1 bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors">
+                  <button class="px-4 py-2 bg-transparent border border-border-soft rounded-lg text-xs font-bold hover:bg-bg-card-hover transition-colors text-text-primary">Browse</button>
+                </div>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-text-secondary">Output Folder ID</label>
+                <input type="text" [(ngModel)]="activeDraft.storageFolderId" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors">
+              </div>
+            </div>
+          </section>
+
+          <!-- Danger Zone -->
+          <section class="pt-10 border-t border-border">
+            <div class="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl flex justify-between items-center">
+              <div>
+                <h4 class="text-sm font-bold text-accent-red">Reset Agent Configuration</h4>
+                <p class="text-xs text-text-secondary mt-1">Revert all keys and model settings to factory defaults.</p>
+              </div>
+              <button (click)="resetSettings()" class="px-6 py-2 bg-transparent border border-accent-red text-accent-red rounded-lg text-xs font-bold hover:bg-accent-red hover:text-white transition-all">
+                Reset to Defaults
+              </button>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- Global Settings Panel -->
+        <div *ngIf="activeSection === 'global'" class="space-y-10 max-w-4xl">
+          <section class="space-y-6">
+            <div class="flex items-center gap-3">
+              <span class="w-8 h-[1px] bg-border"></span>
+              <h4 class="text-xs font-bold text-text-secondary uppercase tracking-[0.2em]">Infrastructure Defaults</h4>
+              <span class="flex-1 h-[1px] bg-border"></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-text-secondary">Default LLM Provider</label>
+                <select class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm">
+                  <option>OpenRouter</option>
+                  <option>Gemini</option>
+                </select>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-text-secondary">FFmpeg Binary Path</label>
+                <input type="text" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm" placeholder="C:\ffmpeg\bin\ffmpeg.exe">
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-text-secondary">Temp Storage Path</label>
+              <input type="text" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm" placeholder="N:\TEMP_PRODUCTION">
+            </div>
+          </section>
+        </div>
+
+      </div>
+
+      <!-- Footer Status -->
+      <footer class="p-4 bg-bg-main/30 border-t border-border flex justify-between items-center text-[10px] uppercase tracking-widest font-bold text-text-secondary px-8">
+        <div class="flex gap-6">
+          <span>Config Version: 2.1.0</span>
+          <span>Last Saved: {{ activeAgent?.updatedAt || 'N/A' }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-accent-green"></span>
+          System Online
+        </div>
+      </footer>
+
+    </main>
+  </div>
+
 </div>

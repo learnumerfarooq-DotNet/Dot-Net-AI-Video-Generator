@@ -40,19 +40,23 @@ public sealed class ContentFactoryFacade(
             request.Topic,
             request.Platform,
             request.Format,
-            BacklogStatus.Backlog,
-            artifacts,
-            now,
-            now), cancellationToken);
+            BacklogStatus.Backlog)
+        {
+            Artifacts = artifacts.ToList(),
+            CreatedAt = now,
+            UpdatedAt = now
+        }, cancellationToken);
 
         var suggestion = await memoryRepository.SuggestAsync(new MemorySuggestion(
             Guid.NewGuid(),
             MemoryScope.Global,
             null,
             $"Topic '{request.Topic}' produced {artifacts.Length} artifacts for {request.Platform}/{request.Format}. Review performance after publishing.",
-            "Global learning must be approved by Brain/operator before becoming shared memory.",
-            MemorySuggestionStatus.Pending,
-            now), cancellationToken);
+            "Global learning must be approved by Brain/operator before becoming shared memory.")
+        {
+            Status = MemorySuggestionStatus.Pending,
+            CreatedAt = now
+        }, cancellationToken);
 
         return new BrainRunResponse(
             Guid.NewGuid(),

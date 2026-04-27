@@ -79,6 +79,7 @@ export type AgentSummary = {
   key: string;
   name: string;
   description: string;
+  icon: string;
   category: string;
   requiresConnection: boolean;
   supportsOpenRouter: boolean;
@@ -124,6 +125,8 @@ export type ScheduleJob = {
   queueMode: string;
   nextRunAt?: string;
   lastRunAt?: string;
+  queuedAt?: string;
+  startedAt?: string;
   notes: string;
 };
 
@@ -135,7 +138,9 @@ export type DriveMetadata = {
 
 export type AgentSettings = {
   agentKey: string;
-  agentName: string;
+  name: string;
+  description: string;
+  icon: string;
   category: string;
   requiresConnection: boolean;
   supportsOpenRouter: boolean;
@@ -148,6 +153,8 @@ export type AgentSettings = {
   clientSecret: string;
   refreshToken: string;
   sourceVideoPath: string;
+  sourceVideoFolderId: string;
+  sourceVideoFolderName: string;
   storageFolderId: string;
   storageFolderName: string;
   storageFolderPath: string;
@@ -174,6 +181,27 @@ export type DriveSettings = {
   clientSecret: string;
   refreshToken: string;
   rootFolderId: string;
+  isConnected: boolean;
+  connectedAccount?: string;
+  storageUsed?: number;
+  storageAvailable?: number;
+  pollingInterval?: number;
+  autoCreateFolders?: boolean;
+};
+
+export type DriveFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  modifiedTime: string;
+  parents: string[];
+  webViewLink: string;
+  iconLink: string;
+  thumbnailLink?: string;
+  isFolder: boolean;
+  pipelineJobId?: string;
+  pipelineStatus?: string;
 };
 
 
@@ -300,6 +328,8 @@ export type SaveAgentSettingsRequest = {
   clientSecret: string;
   refreshToken: string;
   sourceVideoPath: string;
+  sourceVideoFolderId: string;
+  sourceVideoFolderName: string;
   storageFolderId: string;
   storageFolderName: string;
   storageFolderPath: string;
@@ -314,7 +344,7 @@ export type ManualScheduleDraft = {
   name: string;
   agentKey: string;
   trigger: string;
-  notes: string;
+  notes?: string;
   isEnabled: boolean;
 };
 
@@ -395,4 +425,95 @@ export const PROVIDER_SELECT_OPTIONS: ProviderSelectOptions = {
   videoProvider: ['Runway', 'Pika', 'Luma', 'Manual'],
   uploadProvider: ['YouTube', 'TikTok', 'Instagram', 'Facebook', 'LinkedIn', 'DryRun'],
   storageProvider: ['Google Drive', 'Local Storage', 'Manual']
+};
+
+export type ErrorLog = {
+  id: string;
+  agentKey: string;
+  message: string;
+  timestamp: string;
+  severity?: string;
+};
+
+export type PipelineStageType = 'TrendAnalysis' | 'ScriptGeneration' | 'AssetGathering' | 'Editing' | 'ShortsGeneration' | 'Publishing';
+
+export type VideoPipelineJobStage = {
+  stageType: PipelineStageType | string;
+  status: string;
+  progress?: number;
+};
+
+export type VideoPipelineJob = {
+  id: string;
+  fileName: string;
+  agentKey?: string;
+  status: string;
+  currentStage: string;
+  currentProgress: number;
+  retryCount?: number;
+  stages: VideoPipelineJobStage[];
+};
+
+
+
+export type ViralPattern = {
+  id: string;
+  name: string;
+  description: string;
+  confidence: number;
+  sourcePlatform: string;
+  discoveredAt: string;
+};
+
+export type VideoAnalytics = {
+  videoId: string;
+  platform: string;
+  views: number;
+  likes: number;
+  shares: number;
+  comments: number;
+  watchTimeSeconds: number;
+  ctr: number;
+  collectedAt: string;
+};
+
+export type AgentWorkspaceState = {
+  agentKey: string;
+  status: 'idle' | 'running' | 'error' | 'disabled';
+  isConnected: boolean;
+  modelName: string;
+  localMemory: Record<string, any>;
+  recentRuns: AgentRun[];
+  activeJobId: string | null;
+  chatMessages: ChatMessage[];
+  errorLog: ErrorLog[];
+  lastRunAt: string | null;
+};
+
+export type GlobalMemoryFull = {
+  version: string;
+  lastUpdated: string;
+  folderRegistry: Record<string, string>;
+  videoConstraints: {
+    shorts: Record<string, any>;
+    longForm: Record<string, any>;
+  };
+  trendConfig: {
+    tier1Sites: string[];
+    tier2Sites: string[];
+    tier3Sites: string[];
+    useOpenRouterFallback: boolean;
+  };
+  scheduleSlots: string[];
+  agentStatuses: Record<string, string>;
+};
+
+export type AgentLocalMemory = {
+  agentKey: string;
+  lastRunAt: string | null;
+  totalRuns: number;
+  successes: number;
+  failures: number;
+  config: Record<string, any>;
+  configHistory: any[];
 };

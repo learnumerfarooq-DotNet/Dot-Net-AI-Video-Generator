@@ -1,0 +1,154 @@
+.processing-container {
+  background: var(--card-bg, rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.processing-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.processing-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.pulse-icon {
+  color: #00f2fe;
+  font-size: 1.2rem;
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; text-shadow: 0 0 10px #00f2fe; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.count-badge {
+  background: rgba(0, 242, 254, 0.15);
+  color: #00f2fe;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.jobs-scroll-container {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  padding: 12px 0;
+}
+
+.jobs-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.jobs-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.job-card {
+  flex: 0 0 350px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.job-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 242, 254, 0.3);
+}
+
+.job-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary, #fff);
+}
+
+.stage-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.progress-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+}
+
+.percentage {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #00f2fe;
+  min-width: 35px;
+}
+
+.status-indicator {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  align-self: flex-start;
+}
+
+.status-indicator[data-status="Uploading"],
+.status-indicator[data-status="ShortEdited"] {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.status-indicator[data-status="RawDetected"],
+.status-indicator[data-status="ScriptGenerated"] {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.status-indicator[data-status="Edited"],
+.status-indicator[data-status="ShortClipped"] {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}

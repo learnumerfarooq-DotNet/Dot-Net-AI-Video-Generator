@@ -1,9 +1,8 @@
-import { computed, inject, effect } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { DashboardService } from '../services/dashboard.service';
-import { SignalrService } from '../../../core/services/signalr.service';
 import {
   DashboardWorkspace,
   ReadyVideoListItem,
@@ -46,10 +45,9 @@ export const DashboardStore = signalStore(
     usageSeriesCount: computed(() => store.dashboard()?.usageSeries.length ?? 0),
     latestRun:       computed(() => store.latestTaskRun())
   })),
-  withMethods((store, 
-    workspaceSvc = inject(WorkspaceService), 
-    dashboardSvc = inject(DashboardService),
-    signalrSvc = inject(SignalrService)) => {
+  withMethods((store,
+    workspaceSvc = inject(WorkspaceService),
+    dashboardSvc = inject(DashboardService)) => {
     
     async function loadHistory(page: number) {
       try {
@@ -63,23 +61,6 @@ export const DashboardStore = signalStore(
         console.error('Failed to load agent history:', error);
       }
     }
-
-    // Internal effect to react to SignalR events
-    effect(() => {
-      const vChange = signalrSvc.videoStageChanged();
-      const rChange = signalrSvc.agentRunCompleted();
-      const mChange = signalrSvc.memoryAdded();
-
-      if (vChange || rChange || mChange) {
-        firstValueFrom(dashboardSvc.getSummary()).then(summary => {
-          patchState(store, { dashboard: summary });
-        });
-        
-        if (rChange) {
-          loadHistory(store.currentHistoryPage());
-        }
-      }
-    });
 
     return {
       hydrate(workspace: WorkspaceBootstrap) {

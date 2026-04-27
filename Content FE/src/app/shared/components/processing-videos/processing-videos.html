@@ -1,0 +1,27 @@
+<div class="processing-container" *ngIf="activeJobs.length > 0">
+  <div class="processing-header">
+    <i class="fa-solid fa-microchip-ai pulse-icon"></i>
+    <h3>Current Processing Videos</h3>
+    <span class="count-badge">{{ activeJobs.length }} Active</span>
+  </div>
+
+  <div class="jobs-scroll-container">
+    <div class="job-card" *ngFor="let job of activeJobs">
+      <div class="job-main">
+        <div class="job-info">
+          <span class="file-name">{{ job.fileName }}</span>
+          <span class="stage-label">{{ job.currentStage }}</span>
+        </div>
+        <div class="progress-section">
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="job.currentProgress || 0"></div>
+          </div>
+          <span class="percentage">{{ job.currentProgress || 0 }}%</span>
+        </div>
+      </div>
+      <div class="status-indicator" [attr.data-status]="job.status">
+        {{ job.status }}
+      </div>
+    </div>
+  </div>
+</div>

@@ -62,18 +62,20 @@ public sealed class JsonMemoryRepository(IJsonFileStore store) : IMemoryReposito
             }
 
             var suggestion = suggestions[index];
-            suggestions[index] = suggestion with { Status = MemorySuggestionStatus.Approved };
+            suggestion.Status = MemorySuggestionStatus.Approved;
 
             var now = DateTimeOffset.UtcNow;
             var entry = new MemoryEntry(
                 Guid.NewGuid(),
                 suggestion.Scope,
                 suggestion.AgentName,
-                string.IsNullOrWhiteSpace(revisedContent) ? suggestion.Content : revisedContent,
-                ["approved"],
-                now,
-                now,
-                expiresAt);
+                string.IsNullOrWhiteSpace(revisedContent) ? suggestion.Content : revisedContent)
+            {
+                Tags = ["approved"],
+                CreatedAt = now,
+                UpdatedAt = now,
+                ExpiresAt = expiresAt
+            };
 
             var entries = await store.ReadAsync(EntriesFile, new List<MemoryEntry>(), cancellationToken);
             entries.Add(entry);
@@ -101,7 +103,7 @@ public sealed class JsonMemoryRepository(IJsonFileStore store) : IMemoryReposito
                 return false;
             }
 
-            suggestions[index] = suggestions[index] with { Status = MemorySuggestionStatus.Rejected };
+            suggestions[index].Status = MemorySuggestionStatus.Rejected;
             await store.WriteAsync(SuggestionsFile, suggestions, cancellationToken);
             return true;
         }
@@ -117,7 +119,13 @@ public sealed class JsonMemoryRepository(IJsonFileStore store) : IMemoryReposito
         try
         {
             var now = DateTimeOffset.UtcNow;
-            var entry = new MemoryEntry(Guid.NewGuid(), MemoryScope.Local, agentName, content, tags, now, now, expiresAt);
+            var entry = new MemoryEntry(Guid.NewGuid(), MemoryScope.Local, agentName, content)
+            {
+                Tags = tags.ToList(),
+                CreatedAt = now,
+                UpdatedAt = now,
+                ExpiresAt = expiresAt
+            };
             var entries = await store.ReadAsync(EntriesFile, new List<MemoryEntry>(), cancellationToken);
             entries.Add(entry);
             await store.WriteAsync(EntriesFile, entries, cancellationToken);

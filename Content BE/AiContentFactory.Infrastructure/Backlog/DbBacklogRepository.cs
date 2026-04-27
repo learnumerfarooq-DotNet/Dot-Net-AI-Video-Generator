@@ -75,10 +75,12 @@ public sealed class DbBacklogRepository(StudioDbContext dbContext) : IBacklogRep
             video.Topic,
             video.Platforms.FirstOrDefault() ?? "youtube",
             video.Format,
-            MapStageToStatus(video.Stage),
-            [],
-            video.CreatedAt,
-            video.UpdatedAt);
+            MapStageToStatus(video.Stage))
+        {
+            Artifacts = new(),
+            CreatedAt = video.CreatedAt,
+            UpdatedAt = video.UpdatedAt
+        };
     }
 
     private static string MapStatusToStage(BacklogStatus status) => status switch

@@ -3,6 +3,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { ContentFactoryStore } from './core/store/content-factory.store';
+import { SignalrService } from './core/services/signalr.service';
 import { SidebarComponent } from './layout/sidebar/sidebar.component';
 import { TopbarComponent } from './layout/topbar/topbar.component';
 
@@ -59,7 +60,7 @@ const ROUTE_TO_TAB: Record<string, string> = {
   'settings/linkedin-agent':          'settings-linkedin-agent',
   // Drive
   'drive/explorer': 'drive-explorer',
-  'drive/config':   'drive-config'
+  'drive/mapping':  'drive-mapping'
 };
 
 @Component({
@@ -71,8 +72,10 @@ const ROUTE_TO_TAB: Record<string, string> = {
 export class App implements OnInit {
   protected readonly store = inject(ContentFactoryStore);
   private readonly router = inject(Router);
+  private readonly signalr = inject(SignalrService);
 
   ngOnInit(): void {
+    void this.signalr;
     void this.store.init();
 
     // Keep store in sync whenever the router navigates

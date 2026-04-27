@@ -1,0 +1,46 @@
+<div class="premium-card p-6 animate-fade-in" style="animation-delay: 0.1s">
+  <div class="flex justify-between items-start mb-6">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent shadow-[0_0_20px_rgba(139,92,246,0.2)]">
+        <i class="fa-solid fa-brain text-xl"></i>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold">Main Brain</h2>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_var(--success)]"></span>
+          <span class="text-xs font-bold text-text-muted uppercase tracking-widest">{{ brainStatus() }}</span>
+        </div>
+      </div>
+    </div>
+    
+    <button (click)="togglePause()" 
+            class="w-10 h-10 rounded-xl bg-surface-soft border border-border-border flex items-center justify-center hover:bg-surface-strong transition-all">
+      <i [class]="isPaused() ? 'fa-solid fa-play text-success' : 'fa-solid fa-pause text-warning'"></i>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 mt-8">
+    <div class="p-4 rounded-2xl bg-bg-deep/50 border border-border-border">
+      <span class="text-[10px] font-bold text-text-muted uppercase tracking-widest block mb-1">Tick Cycle</span>
+      <span class="text-lg font-bold">#{{ currentTick() | number }}</span>
+    </div>
+    <div class="p-4 rounded-2xl bg-bg-deep/50 border border-border-border">
+      <span class="text-[10px] font-bold text-text-muted uppercase tracking-widest block mb-1">Active Jobs</span>
+      <span class="text-lg font-bold">{{ activeJobs() }}</span>
+    </div>
+  </div>
+
+  <div class="mt-6 space-y-4">
+    <div class="flex justify-between items-center text-sm p-2">
+      <span class="text-text-muted">Circuit Breaker</span>
+      <span class="font-bold" [class.text-success]="!circuitBreakerOpen()" [class.text-danger]="circuitBreakerOpen()">
+        {{ circuitBreakerOpen() ? 'INTERRUPTED' : 'STABLE' }}
+      </span>
+    </div>
+    <div class="h-px bg-gradient-to-r from-transparent via-border-border to-transparent"></div>
+    <div class="flex justify-between items-center text-sm p-2">
+      <span class="text-text-muted">Neural Sync</span>
+      <span class="font-bold text-accent">{{ globalMemoryVersion() }}</span>
+    </div>
+  </div>
+</div>

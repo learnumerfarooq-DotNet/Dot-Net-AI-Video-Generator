@@ -8,16 +8,35 @@ import { ApiService } from '../../../core/services/api.service';
 export class SettingsService {
   private readonly api = inject(ApiService);
 
-  /** Persists provider, model, credential, and storage settings for a single agent. */
+  loadAllAgentSettings(): Observable<AgentSettings[]> {
+    return this.api.getAction<AgentSettings[]>(ENDPOINTS.SETTINGS, 'agents');
+  }
+
+  loadAgentSettings(agentKey: string): Observable<AgentSettings> {
+    return this.api.getAction<AgentSettings>(ENDPOINTS.SETTINGS, `agents/${agentKey}`);
+  }
+
   saveAgentSettings(agentKey: string, request: SaveAgentSettingsRequest): Observable<AgentSettings> {
-    return this.api.put<AgentSettings>(ENDPOINTS.SETTINGS, `agents/${agentKey}`, request);
+    return this.api.putAction<AgentSettings>(ENDPOINTS.SETTINGS, `agents/${agentKey}`, request);
   }
 
-  testAgentConnection(agentKey: string): Observable<any> {
-    return this.api.postAction<any>(ENDPOINTS.AGENTS, `${agentKey}/connection/test`, {});
+  testAgentConnection(agentKey: string): Observable<{ success: boolean; message: string; details?: string }> {
+    return this.api.postAction<{ success: boolean; message: string; details?: string }>(ENDPOINTS.SETTINGS, `agents/${agentKey}/test`, {});
   }
 
-  testDriveConnection(): Observable<any> {
-    return this.api.postAction<any>(ENDPOINTS.DRIVE, 'connection/test', {});
+  testDriveConnection(): Observable<{ success: boolean; message: string; details?: string }> {
+    return this.api.postAction<{ success: boolean; message: string; details?: string }>(ENDPOINTS.SETTINGS, `drive/test`, {});
+  }
+
+  resetAgentSettings(agentKey: string): Observable<void> {
+    return this.api.postAction<void>(ENDPOINTS.SETTINGS, `agents/${agentKey}/reset`, {});
+  }
+
+  loadGlobalSettings(): Observable<any> {
+    return this.api.getAction<any>(ENDPOINTS.SETTINGS, 'global');
+  }
+
+  saveGlobalSettings(settings: any): Observable<any> {
+    return this.api.put<any>(ENDPOINTS.SETTINGS, 'global', settings);
   }
 }

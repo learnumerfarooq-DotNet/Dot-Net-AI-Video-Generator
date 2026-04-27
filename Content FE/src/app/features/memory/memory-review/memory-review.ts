@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
-import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ContentFactoryStore } from '../../../core/store/content-factory.store';
 import { MemoryStore } from '../store/memory.store';
 import { MemoryRecord } from '../../../core/models/content-factory.models';
@@ -14,18 +14,27 @@ import { MemoryRecord } from '../../../core/models/content-factory.models';
 export class MemoryReviewComponent implements OnInit {
   protected readonly store = inject(ContentFactoryStore);
   protected readonly memoryStore = inject(MemoryStore);
+  
   reviewForms: Record<string, FormGroup> = {};
+  showHistory = false;
 
   constructor(private fb: FormBuilder) {}
 
   ngOnInit(): void {
+    this.memoryStore.loadPendingMemorySuggestions();
+    this.buildForms();
+  }
+
+  buildForms() {
     const queue = this.memoryStore.reviewQueue();
     if (queue) {
-      queue.forEach((item: any) => {
-        this.reviewForms[item.id] = this.fb.group({
-          title: [item.title, Validators.required],
-          content: [item.content, Validators.required]
-        });
+      queue.forEach((item) => {
+        if (!this.reviewForms[item.id]) {
+          this.reviewForms[item.id] = this.fb.group({
+            title: [item.title, Validators.required],
+            content: [item.content, Validators.required]
+          });
+        }
       });
     }
   }
@@ -51,5 +60,9 @@ export class MemoryReviewComponent implements OnInit {
 
   reject(item: MemoryRecord): void {
     void this.memoryStore.rejectMemory(item, () => this.store.refreshAll());
+  }
+
+  toggleHistory() {
+    this.showHistory = !this.showHistory;
   }
 }

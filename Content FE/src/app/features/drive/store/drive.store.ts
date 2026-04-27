@@ -14,6 +14,10 @@ type DriveState = {
   status: string;
   currentFolderId: string | null;
   breadcrumbs: { id: string | null, name: string }[];
+  selectedFile: any | null;
+  viewMode: 'grid' | 'list';
+  sortBy: 'name' | 'modified' | 'size';
+  folderMappings: any | null;
 };
 
 const initialState: DriveState = {
@@ -24,11 +28,14 @@ const initialState: DriveState = {
   loadingDrive: false,
   status: 'Ready',
   currentFolderId: null,
-  breadcrumbs: [{ id: null, name: 'My Drive' }]
+  breadcrumbs: [{ id: null, name: 'My Drive' }],
+  selectedFile: null,
+  viewMode: 'grid',
+  sortBy: 'modified',
+  folderMappings: null
 };
 
 export const DriveStore = signalStore(
-  { providedIn: 'root' },
   withState(initialState),
   withComputed((store) => ({
     isDriveConfigured: computed(() => !!(store.driveConfig()?.clientId && store.driveConfig()?.refreshToken)),
@@ -88,6 +95,22 @@ export const DriveStore = signalStore(
 
       await this.loadDriveFiles(folderId);
     },
+    
+    async navigateToFolderByName(name: string) {
+      if (!store.isDriveConfigured()) return;
+      patchState(store, { loadingDrive: true, status: `Finding folder ${name}...` });
+      try {
+        const files = await firstValueFrom(driveSvc.listFiles(undefined));
+        const folder = files.find(f => f.name === name && f.type === 'folder');
+        if (folder) {
+          await this.navigateToFolder(folder.id, folder.name);
+        } else {
+           patchState(store, { loadingDrive: false, status: `Folder ${name} not found.` });
+        }
+      } catch (error) {
+        patchState(store, { loadingDrive: false, status: `Search failed: ${readError(error)}` });
+      }
+    },
 
     async uploadDriveFile(file: File) {
       patchState(store, { loadingDrive: true, status: `Uploading ${file.name}...` });
@@ -104,7 +127,7 @@ export const DriveStore = signalStore(
     },
 
     async downloadDriveFile(item: any) {
-      const fileId = item.id || item.Id;
+      const fileId = item.id;
 
       if (!fileId) {
         return;
@@ -161,6 +184,75 @@ export const DriveStore = signalStore(
           status: `Drive test error: ${readError(error)}`
         });
       }
+    },
+
+    async deleteDriveFile(fileId: string) {
+      patchState(store, { status: 'Deleting file from Drive...' });
+      try {
+        await firstValueFrom(driveSvc.deleteFile(fileId));
+        patchState(store, (state) => ({
+          driveFiles: state.driveFiles.filter(f => f.id !== fileId),
+          selectedFile: state.selectedFile?.id === fileId ? null : state.selectedFile,
+          status: 'File deleted.'
+        }));
+      } catch (error) {
+        patchState(store, { status: `Delete failed: ${readError(error)}` });
+      }
+    },
+
+    async moveDriveFile(fileId: string, targetFolderId: string) {
+      patchState(store, { status: 'Moving file...' });
+      try {
+        await firstValueFrom(driveSvc.moveFile(fileId, targetFolderId));
+        patchState(store, (state) => ({
+          driveFiles: state.driveFiles.filter(f => f.id !== fileId),
+          status: 'File moved successfully.'
+        }));
+      } catch (error) {
+        patchState(store, { status: `Move failed: ${readError(error)}` });
+      }
+    },
+
+    async startVideoPipeline(fileId: string, fileName: string) {
+      patchState(store, { status: `Starting pipeline for ${fileName}...` });
+      try {
+        await firstValueFrom(driveSvc.startPipeline(fileId, fileName));
+        patchState(store, { status: 'Pipeline initiated successfully.' });
+      } catch (error) {
+        patchState(store, { status: `Pipeline start failed: ${readError(error)}` });
+      }
+    },
+
+    async loadFolderMappings() {
+      try {
+        const mapping = await firstValueFrom(driveSvc.getFolderMapping());
+        patchState(store, { folderMappings: mapping });
+      } catch (error) {
+        console.error('Failed to load folder mappings', error);
+      }
+    },
+
+    async createMissingFolders() {
+      patchState(store, { status: 'Creating missing agent folders...' });
+      try {
+        await firstValueFrom(driveSvc.createMissingFolders());
+        await this.loadFolderMappings();
+        patchState(store, { status: 'All missing folders created.' });
+      } catch (error) {
+        patchState(store, { status: `Folder setup failed: ${readError(error)}` });
+      }
+    },
+
+    setSelectedFile(file: any | null) {
+      patchState(store, { selectedFile: file });
+    },
+
+    setViewMode(mode: 'grid' | 'list') {
+      patchState(store, { viewMode: mode });
+    },
+
+    setSortBy(sort: 'name' | 'modified' | 'size') {
+      patchState(store, { sortBy: sort });
     }
   }))
 );

@@ -1,9 +1,11 @@
-import { computed, inject, effect } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { AgentsService } from '../services/agents.service';
-import { SignalrService } from '../../../core/services/signalr.service';
-import { AgentSummary, ChatMessage, WorkspaceBootstrap } from '../../../core/models/content-factory.models';
+import { AgentSummary, ChatMessage, WorkspaceBootstrap, VideoPipelineJob } from '../../../core/models/content-factory.models';
+import { PipelineStore } from '../../../core/store/pipeline.store';
+import { SettingsStore } from '../../settings/store/settings.store';
+import { AgentWorkspaceService } from '../services/agent-workspace.service';
 
 type AgentsState = {
   agents: AgentSummary[];
@@ -30,35 +32,52 @@ const initialState: AgentsState = {
 export const AgentsStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
-  withComputed((store) => ({
-    activeAgent: computed<AgentSummary | null>(() => {
-      const key = store.activeAgentKey();
-      return key ? store.agents().find((a) => a.key === key) ?? null : null;
-    }),
-    activeAgentMessages: computed<ChatMessage[]>(() => {
-      const key = store.activeAgentKey();
-      return key ? store.chatMessages().filter((m) => m.agentKey === key) : [];
-    }),
-    connectedAgentCount: computed(() => store.agents().filter((a) => a.isConnected).length)
-  })),
+  withComputed((store) => {
+    const pipeline = inject(PipelineStore);
+    const settings = inject(SettingsStore);
+
+    return {
+      activeAgent: computed<AgentSummary | null>(() => {
+        const key = store.activeAgentKey();
+        return key ? store.agents().find((a) => a.key === key) ?? null : null;
+      }),
+      activeAgentMessages: computed<ChatMessage[]>(() => {
+        const key = store.activeAgentKey();
+        return key ? store.chatMessages().filter((m) => m.agentKey === key) : [];
+      }),
+      connectedAgentCount: computed(() => store.agents().filter((a) => a.isConnected).length),
+
+      // NEW: Active context for Agent Workspace
+      activeJob: computed<VideoPipelineJob | null>(() => {
+        const agentKey = store.activeAgentKey();
+        if (!agentKey) return null;
+        
+        return pipeline.jobs().find(j => {
+          if (j.status === 'Published' || j.status === 'Failed') {
+            return false;
+          }
+
+          return (j as any).agentKey === agentKey;
+        }) ?? null;
+      }),
+
+      targetFolder: computed(() => {
+        const agentKey = store.activeAgentKey();
+        if (!agentKey) return null;
+        
+        const agentSettings = settings.agentSettings().find((s: any) => s.agentKey === agentKey);
+        return agentSettings ? {
+          id: agentSettings.storageFolderId,
+          name: agentSettings.storageFolderName,
+          path: agentSettings.storageFolderPath,
+          url: agentSettings.storageFolderUrl
+        } : null;
+      })
+    };
+  }),
   withMethods((store, 
     agentsSvc = inject(AgentsService),
-    signalrSvc = inject(SignalrService)) => {
-    
-    effect(() => {
-      const started = signalrSvc.agentRunStarted();
-      const completed = signalrSvc.agentRunCompleted();
-      const activeKey = store.activeAgentKey();
-
-      if (started && started.agentKey === activeKey) {
-        patchState(store, { isThinking: true, status: 'Agent is executing background task...' });
-      }
-
-      if (completed && completed.agentKey === activeKey) {
-        patchState(store, { isThinking: false, status: 'Task completed.' });
-      }
-    });
-
+    workspaceSvc = inject(AgentWorkspaceService)) => {
     return {
     hydrate(workspace: WorkspaceBootstrap) {
       patchState(store, {
@@ -113,6 +132,111 @@ export const AgentsStore = signalStore(
           });
         }
       });
+    },
+
+    async startAgentRun(agentKey: string) {
+      patchState(store, { status: 'Starting agent run...' });
+      try {
+        await firstValueFrom(workspaceSvc.startRun(agentKey));
+        patchState(store, { status: 'Agent run started.' });
+      } catch (e) {
+        patchState(store, { status: `Failed to start: ${readError(e)}` });
+      }
+    },
+
+    async stopAgentRun(agentKey: string) {
+      try {
+        await firstValueFrom(workspaceSvc.stopRun(agentKey));
+        patchState(store, { status: 'Agent run stopped.' });
+      } catch (e) {
+        patchState(store, { status: `Failed to stop: ${readError(e)}` });
+      }
+    },
+
+    async clearChatHistory(agentKey: string) {
+      try {
+        await firstValueFrom(workspaceSvc.clearChat(agentKey));
+        patchState(store, { 
+          chatMessages: store.chatMessages().filter(m => (m as any).agentKey !== agentKey),
+          status: 'Chat history cleared.'
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    },
+
+    async getLocalMemory(agentKey: string) {
+      return await firstValueFrom(workspaceSvc.getLocalMemory(agentKey));
+    },
+
+    async updateLocalMemory(agentKey: string, config: any) {
+      await firstValueFrom(workspaceSvc.updateLocalMemory(agentKey, config));
+      patchState(store, { status: 'Local memory updated.' });
+    },
+
+    async getRunHistory(agentKey: string) {
+      return await firstValueFrom(workspaceSvc.getRunHistory(agentKey));
+    },
+
+    async getErrorLog(agentKey: string) {
+      return await firstValueFrom(workspaceSvc.getErrorLog(agentKey));
+    },
+
+    handleRunStarted(payload: any) {
+      if (store.activeAgentKey() === payload.agentKey) {
+        patchState(store, { isThinking: true, status: 'Agent started background task...' });
+      }
+      // Update agent status in the list
+      patchState(store, (state) => ({
+        agents: state.agents.map(a => a.key === payload.agentKey ? { ...a, status: 'Running' } : a)
+      }));
+    },
+
+    handleRunCompleted(payload: any) {
+      if (store.activeAgentKey() === payload.agentKey) {
+        patchState(store, { isThinking: false, status: 'Background task finished.' });
+      }
+      patchState(store, (state) => ({
+        agents: state.agents.map(a => a.key === payload.agentKey ? { ...a, status: 'Idle', lastRunAt: new Date().toISOString() } : a)
+      }));
+    },
+
+    handleHealthChanged(payload: any) {
+      patchState(store, (state) => ({
+        agents: state.agents.map(a => a.key === payload.agentKey ? { ...a, status: payload.status ?? payload.newStatus } : a)
+      }));
+    },
+
+    handleChatResponse(payload: any) {
+      if (store.activeAgentKey() === payload.agentKey) {
+        patchState(store, (state) => ({
+          chatMessages: [...state.chatMessages, payload.message],
+          sendingChat: false,
+          isThinking: false,
+          status: 'Response received.'
+        }));
+      }
+    },
+
+    handleChatStreamChunk(payload: any) {
+      if (store.activeAgentKey() === payload.agentKey) {
+        if (payload.type === 'delta') {
+          patchState(store, { 
+            isThinking: false, 
+            streamingContent: store.streamingContent() + (payload.chunk ?? payload.content ?? '') 
+          });
+        } else if (payload.type === 'done') {
+          patchState(store, { 
+            streamingContent: '',
+            isThinking: false
+          });
+          if (payload.message) {
+            patchState(store, (state) => ({
+              chatMessages: [...state.chatMessages, payload.message]
+            }));
+          }
+        }
+      }
     }
   };
 })

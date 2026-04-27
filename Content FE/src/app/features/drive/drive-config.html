@@ -1,105 +1,142 @@
-<div class="panel">
-  <div class="panel-header">
-    <h2>Global Google Drive Configuration</h2>
-    <i class="fa-brands fa-google-drive" style="color:var(--success)"></i>
-  </div>
-  
-  <p class="section-description">
-    Configure the central Google Drive storage for all agents. Once configured, all agents will use this drive for their video uploads and file management.
-  </p>
+<div class="h-full flex flex-col bg-bg-main p-6 gap-6 overflow-y-auto">
 
-  <!-- OAuth Connect Button -->
-  <div class="oauth-section">
-    <div class="oauth-card">
-      <div class="oauth-card-content">
-        <div class="oauth-icon">
-          <svg viewBox="0 0 24 24" width="28" height="28">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
+  <!-- Status Section -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
+    <!-- Connection Health -->
+    <div class="bg-card border border-border rounded-xl p-6 flex flex-col gap-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-text-primary flex items-center gap-2">
+          <i class="fa-solid fa-link" [ngClass]="driveStore.isDriveConnected() ? 'text-accent-green' : 'text-text-secondary'"></i>
+          Connection Status
+        </h3>
+        <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" 
+              [ngClass]="driveStore.isDriveConnected() ? 'bg-green-500/10 text-accent-green' : 'bg-gray-500/10 text-text-secondary'">
+          {{ driveStore.isDriveConnected() ? 'Connected' : 'Disconnected' }}
+        </span>
+      </div>
+      
+      <div class="space-y-3 pt-2">
+        <div class="flex justify-between text-sm">
+          <span class="text-text-secondary">Connected Account</span>
+          <span class="text-text-primary font-medium">{{ driveStore.driveConfig()?.connectedAccount || 'Not linked' }}</span>
         </div>
-        <div class="oauth-info">
-          <h3>Quick Connect with Google</h3>
-          <p>Authorize with your Google account to automatically generate the refresh token. This is the easiest way to connect.</p>
+        <div class="flex justify-between text-sm">
+          <span class="text-text-secondary">Last Sync</span>
+          <span class="text-text-primary font-medium">{{ driveStore.status() }}</span>
         </div>
       </div>
-      @if (driveStore.testingDriveConnection()) {
-        <div class="oauth-connected pending">
-          <i class="fa-solid fa-circle-notch fa-spin"></i>
-          <span>Checking connection...</span>
-        </div>
-      } @else if (driveStore.isDriveConnected()) {
-        <div class="oauth-connected">
-          <i class="fa-solid fa-check-circle"></i>
-          <span>Connected — Google Drive verified</span>
-        </div>
-      } @else if (config.refreshToken) {
-        <div class="oauth-connected failed">
-          <i class="fa-solid fa-circle-exclamation"></i>
-          <span>Not connected — token exists but verification failed</span>
-        </div>
-      } @else {
-        <button class="google-button" (click)="startOAuth()">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-            <path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Connect with Google
+
+      <div class="flex gap-2 mt-2">
+        <button (click)="driveStore.testDriveConnection()" class="flex-1 py-2 border border-border rounded-lg text-xs font-bold text-text-primary hover:bg-bg-card-hover transition-colors">
+          <i class="fa-solid fa-rotate mr-2" [class.fa-spin]="driveStore.testingDriveConnection()"></i> Test Connection
         </button>
-      }
+        <button *ngIf="driveStore.isDriveConnected()" (click)="disconnect()" class="px-4 py-2 border border-border rounded-lg text-xs font-bold text-accent-red hover:bg-red-500/10 transition-colors">
+          Disconnect
+        </button>
+      </div>
+    </div>
+
+    <!-- Storage Info -->
+    <div class="bg-card border border-border rounded-xl p-6 flex flex-col gap-4">
+      <h3 class="font-bold text-text-primary flex items-center gap-2">
+        <i class="fa-solid fa-hard-drive text-accent-blue"></i> Drive Capacity
+      </h3>
+      <div class="space-y-4 pt-2">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-text-secondary">Usage Details</span>
+          <span class="text-text-primary font-bold">1.2 GB / 15.0 GB</span>
+        </div>
+        <div class="w-full h-2 bg-bg-main rounded-full overflow-hidden border border-border">
+          <div class="h-full bg-accent-blue transition-all duration-1000" style="width: 8%"></div>
+        </div>
+        <p class="text-[10px] text-text-secondary italic">
+          * Storage usage is updated every {{ config.pollingInterval }}s.
+        </p>
+      </div>
     </div>
   </div>
 
-  <div class="divider">
-    <span>or configure manually</span>
+  <!-- Configuration Form -->
+  <div class="bg-card border border-border rounded-xl flex flex-col overflow-hidden">
+    <div class="p-4 border-b border-border font-bold text-text-primary flex items-center gap-3 bg-bg-main/30">
+      <i class="fa-solid fa-key text-accent-blue"></i>
+      <h3>API Credentials</h3>
+    </div>
+    
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Google OAuth Section -->
+      <div class="space-y-6">
+        <div class="p-4 bg-accent-blue/5 border border-accent-blue/10 rounded-xl space-y-3">
+          <h4 class="text-xs font-bold text-accent-blue uppercase tracking-widest">Setup Instructions</h4>
+          <p class="text-xs text-text-secondary leading-relaxed">
+            1. Create a project in <a href="https://console.cloud.google.com/" target="_blank" class="text-accent-blue underline">Google Cloud Console</a>.<br>
+            2. Enable Google Drive API.<br>
+            3. Create OAuth 2.0 Credentials (Web Application).<br>
+            4. Add the Authorized Redirect URI below.
+          </p>
+          <div class="flex flex-col gap-2 pt-2">
+            <span class="text-[10px] text-text-secondary font-bold uppercase">Authorized Redirect URI</span>
+            <div class="flex gap-2">
+              <input type="text" [value]="redirectUri" readonly class="flex-1 bg-bg-main border border-border rounded px-3 py-1.5 text-xs text-text-secondary font-mono">
+              <button (click)="copyUri()" class="px-3 py-1.5 bg-card border border-border rounded text-xs text-text-primary hover:bg-bg-card-hover"><i class="fa-solid fa-copy"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium text-text-secondary">Client ID</label>
+          <input type="text" [(ngModel)]="config.clientId" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors" placeholder="000000000-xxxx.apps.googleusercontent.com">
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium text-text-secondary">Client Secret</label>
+          <div class="relative">
+            <input [type]="showSecrets ? 'text' : 'password'" [(ngModel)]="config.clientSecret" class="w-full bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors" placeholder="GOCSPX-xxxxxxxx">
+            <button (click)="showSecrets = !showSecrets" class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary">
+              <i class="fa-solid" [ngClass]="showSecrets ? 'fa-eye-slash' : 'fa-eye'"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button (click)="startOAuth()" class="w-full py-3 bg-accent-blue text-white rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg flex items-center justify-center gap-3">
+            <i class="fa-brands fa-google"></i>
+            Link Google Account
+          </button>
+        </div>
+      </div>
+
+      <!-- Advanced Section -->
+      <div class="space-y-6">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium text-text-secondary">Root Folder ID (Optional)</label>
+          <input type="text" [(ngModel)]="config.rootFolderId" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors" placeholder="root">
+          <span class="text-[10px] text-text-secondary mt-1">Leave blank to use the main Drive root.</span>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium text-text-secondary">Polling Interval (Seconds)</label>
+          <input type="number" [(ngModel)]="config.pollingInterval" class="bg-bg-main border border-border rounded-lg px-4 py-2.5 text-text-primary text-sm focus:border-accent-blue outline-none transition-colors">
+        </div>
+
+        <div class="space-y-4 pt-4">
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <div class="relative inline-flex items-center">
+              <input type="checkbox" [(ngModel)]="config.autoCreateFolders" class="sr-only peer">
+              <div class="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-blue"></div>
+            </div>
+            <span class="text-sm font-medium text-text-primary group-hover:text-accent-blue transition-colors">Auto-create agent folders</span>
+          </label>
+        </div>
+
+        <div class="pt-8 flex justify-end">
+          <button (click)="saveConfig()" [disabled]="driveStore.loadingDrive()" class="px-8 py-3 bg-card border border-border text-text-primary rounded-xl font-bold hover:bg-bg-card-hover transition-all flex items-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i>
+            Save Configuration
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="config-form">
-    <div class="form-group">
-      <label>Client ID</label>
-      <input type="text" [(ngModel)]="config.clientId" placeholder="Enter Google OAuth Client ID">
-      <span class="help-text">Obtained from Google Cloud Console</span>
-    </div>
-
-    <div class="form-group">
-      <label>Client Secret</label>
-      <input type="password" [(ngModel)]="config.clientSecret" placeholder="Enter Google OAuth Client Secret">
-    </div>
-
-    <div class="form-group">
-      <label>Refresh Token</label>
-      <input type="password" [(ngModel)]="config.refreshToken" placeholder="Enter OAuth Refresh Token">
-      <span class="help-text">Use the "Connect with Google" button above to generate this automatically.</span>
-    </div>
-
-    <div class="form-group">
-      <label>Root Folder ID</label>
-      <input type="text" [(ngModel)]="config.rootFolderId" placeholder="Enter Target Folder ID">
-      <span class="help-text">The main folder where all agent subfolders will be created.</span>
-    </div>
-
-    <div class="form-actions">
-      <button class="primary-button" (click)="saveConfig()">
-        <i class="fa-solid fa-save"></i>
-        Save Configuration
-      </button>
-    </div>
-  </div>
-
-  <!-- Redirect URI Info Box -->
-  <div class="redirect-info">
-    <h4><i class="fa-solid fa-circle-info"></i> Required Google Cloud Console Setup</h4>
-    <p>To use "Connect with Google", add this <strong>Authorized redirect URI</strong> in your 
-       <a href="https://console.cloud.google.com/apis/credentials?project=drive-api-494419" target="_blank">Google Cloud Console</a>:</p>
-    <div class="uri-box">
-      <code id="redirect-uri">{{ redirectUri }}</code>
-      <button class="copy-btn" (click)="copyUri()">
-        <i class="fa-solid fa-copy"></i>
-      </button>
-    </div>
-  </div>
 </div>

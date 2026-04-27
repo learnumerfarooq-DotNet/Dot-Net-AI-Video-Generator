@@ -1,5 +1,19 @@
+using AiContentFactory.Domain.Pipeline;
+using AiContentFactory.Domain.Decisions;
+using AiContentFactory.Domain.Brain;
+using AiContentFactory.Domain.Memory;
+using AiContentFactory.Domain.Memory.AgentMemories;
+using AiContentFactory.Domain.Agents;
+using AiContentFactory.Domain.Processing;
+using AiContentFactory.Domain.Trends;
+using AiContentFactory.Domain.Analytics;
+using AiContentFactory.Domain.Errors;
+using AiContentFactory.Domain.Publishing.YouTube;
+using AiContentFactory.Domain.Publishing.TikTok;
+using AiContentFactory.Domain.Publishing.Instagram;
+using AiContentFactory.Domain.Publishing.Facebook;
+using AiContentFactory.Domain.Publishing.LinkedIn;
 using Microsoft.EntityFrameworkCore;
-
 namespace AiContentFactory.Infrastructure.Persistence;
 
 public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options) : DbContext(options)
@@ -15,6 +29,60 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options) :
     public DbSet<StudioAgentConnectionEntity> AgentConnections => Set<StudioAgentConnectionEntity>();
     public DbSet<StudioAgentRunEntity> AgentRuns => Set<StudioAgentRunEntity>();
     public DbSet<StudioDriveConfigEntity> DriveConfigs => Set<StudioDriveConfigEntity>();
+
+    // Video Pipeline Entities
+    public DbSet<VideoPipelineJob> VideoPipelineJobs { get; set; }
+    public DbSet<PipelineStage> PipelineStages { get; set; }
+    public DbSet<VideoMetadata> VideoMetadata { get; set; }
+    public DbSet<PlatformPublishJob> PlatformPublishJobs { get; set; }
+    public DbSet<UploadSchedule> UploadSchedules { get; set; }
+    public DbSet<AiContentFactory.Domain.Analytics.VideoAnalytics> VideoAnalytics { get; set; }
+    public DbSet<AiContentFactory.Domain.Analytics.ViralPattern> ViralPatterns { get; set; }
+    public DbSet<PipelineError> ErrorQueue { get; set; }
+
+    // Decision Layer Entities
+    public DbSet<AgentDecision> AgentDecisions { get; set; }
+    public DbSet<PromptTemplate> PromptTemplates { get; set; }
+    public DbSet<DecisionValidation> DecisionValidations { get; set; }
+    public DbSet<DecisionCacheEntry> DecisionCacheEntries { get; set; }
+
+    // Phase 1: Foundation Entities
+    public DbSet<BrainState> BrainStates { get; set; }
+    public DbSet<BrainTickLog> BrainTickLogs { get; set; }
+    public DbSet<AgentLocalMemory> AgentLocalMemories { get; set; }
+    
+    // Phase 2: Pipeline Agents
+    public DbSet<ScriptOutput> ScriptOutputs { get; set; }
+    public DbSet<EditPlan> EditPlans { get; set; }
+    public DbSet<VideoAnalysisResult> VideoAnalysisResults { get; set; }
+    public DbSet<ShortClip> ShortClips { get; set; }
+    public DbSet<ShortEditPlan> ShortEditPlans { get; set; }
+    
+    // Phase 3 & 4: Intelligence & Publishing
+    public DbSet<TrendResult> TrendResults { get; set; }
+    public DbSet<ScrapeResult> ScrapeResults { get; set; }
+    public DbSet<UploadPackage> UploadPackages { get; set; }
+    public DbSet<AnalyticsReport> AnalyticsReports { get; set; }
+    
+    // Phase 5: Error Resilience
+    public DbSet<DeadLetterEntry> DeadLetterEntries { get; set; }
+    public DbSet<CircuitBreakerState> CircuitBreakerStates { get; set; }
+    public DbSet<RetryPolicy> RetryPolicies { get; set; }
+    public DbSet<ErrorLog> ErrorLogs { get; set; }
+    
+    // Phase 6: Additional
+    public DbSet<DecisionAuditLog> DecisionAuditLogs { get; set; }
+    public DbSet<YouTubeUploadResult> YouTubeUploadResults { get; set; }
+    public DbSet<YouTubeCredential> YouTubeCredentials { get; set; }
+    public DbSet<YouTubeVideoDetails> YouTubeVideoDetails { get; set; }
+    public DbSet<TikTokUploadResult> TikTokUploadResults { get; set; }
+    public DbSet<TikTokCredential> TikTokCredentials { get; set; }
+    public DbSet<InstagramUploadResult> InstagramUploadResults { get; set; }
+    public DbSet<InstagramCredential> InstagramCredentials { get; set; }
+    public DbSet<FacebookUploadResult> FacebookUploadResults { get; set; }
+    public DbSet<FacebookCredential> FacebookCredentials { get; set; }
+    public DbSet<LinkedInUploadResult> LinkedInUploadResults { get; set; }
+    public DbSet<LinkedInCredential> LinkedInCredentials { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -144,6 +212,232 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options) :
             entity.Property(conn => conn.AgentKey).HasMaxLength(120);
             entity.Property(conn => conn.ProviderName).HasMaxLength(120);
             entity.Property(conn => conn.ModelName).HasMaxLength(160);
+        });
+
+        // Video Pipeline Configurations
+        modelBuilder.Entity<VideoPipelineJob>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.Property(e => e.CurrentStage).HasConversion<string>();
+            entity.HasMany(e => e.Stages).WithOne().HasForeignKey(s => s.JobId);
+            entity.HasOne(e => e.Metadata).WithOne().HasForeignKey<VideoMetadata>(m => m.JobId);
+        });
+
+        modelBuilder.Entity<PipelineStage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StageType).HasConversion<string>();
+            entity.Property(e => e.Status).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<VideoMetadata>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+        });
+
+        modelBuilder.Entity<PlatformPublishJob>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Platform).HasConversion<string>();
+            entity.Property(e => e.Status).HasConversion<string>();
+        });
+
+        // Decision Layer Configurations
+        modelBuilder.Entity<AgentDecision>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).HasConversion<string>();
+            entity.Property(e => e.Outcome).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<PromptTemplate>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DecisionType).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<DecisionValidation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+        });
+
+        modelBuilder.Entity<DecisionCacheEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.CacheKey).IsUnique();
+        });
+
+        // ==========================
+        // V2 Entities Configurations
+        // ==========================
+
+        // Brain
+        modelBuilder.Entity<BrainState>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AgentHealthMap).HasColumnType("jsonb");
+            entity.HasIndex(e => e.Status);
+        });
+
+        modelBuilder.Entity<BrainTickLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TickNumber);
+            entity.HasIndex(e => e.StartedAt);
+        });
+
+        // Local Memory
+        modelBuilder.Entity<AgentLocalMemory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
+            entity.Property(e => e.ConfigJson).HasColumnType("jsonb");
+        });
+
+        // Agents
+        modelBuilder.Entity<ScriptOutput>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.JobId);
+            entity.Property(e => e.Keywords).HasColumnType("jsonb");
+            entity.Property(e => e.Hashtags).HasColumnType("jsonb");
+            entity.Property(e => e.SuggestedPlatforms).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<EditPlan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.JobId);
+            entity.Property(e => e.Segments).HasColumnType("jsonb");
+            entity.Property(e => e.Captions).HasColumnType("jsonb");
+            entity.Property(e => e.AudioAdjustments).HasColumnType("jsonb");
+            entity.Property(e => e.Transitions).HasColumnType("jsonb");
+            entity.Property(e => e.ColorGrading).HasColumnType("jsonb");
+            entity.Property(e => e.FFmpegCommands).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<ShortClip>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.JobId);
+            entity.HasIndex(e => e.Status);
+        });
+
+        modelBuilder.Entity<ShortEditPlan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ShortClipId);
+            entity.Property(e => e.HookOverlay).HasColumnType("jsonb");
+            entity.Property(e => e.Captions).HasColumnType("jsonb");
+            entity.Property(e => e.MusicTrack).HasColumnType("jsonb");
+            entity.Property(e => e.EmojiOverlays).HasColumnType("jsonb");
+            entity.Property(e => e.Watermark).HasColumnType("jsonb");
+            entity.Property(e => e.FFmpegCommands).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<TrendResult>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.DiscoveredAt);
+            entity.Property(e => e.Topics).HasColumnType("jsonb");
+            entity.Property(e => e.PlannedUploads).HasColumnType("jsonb");
+            entity.Property(e => e.TopKeywords).HasColumnType("jsonb");
+            entity.Property(e => e.TopHashtags).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<UploadPackage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.JobId);
+            entity.HasIndex(e => e.Status);
+            entity.Property(e => e.Keywords).HasColumnType("jsonb");
+            entity.Property(e => e.Hashtags).HasColumnType("jsonb");
+            entity.Property(e => e.TargetPlatforms).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<AnalyticsReport>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ReportDate);
+            entity.Property(e => e.TopPerformingVideos).HasColumnType("jsonb");
+            entity.Property(e => e.WorstPerformingVideos).HasColumnType("jsonb");
+            entity.Property(e => e.DetectedPatterns).HasColumnType("jsonb");
+            entity.Property(e => e.Recommendations).HasColumnType("jsonb");
+        });
+
+        // Errors
+        modelBuilder.Entity<DeadLetterEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.JobId);
+            entity.Property(e => e.AllErrors).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<CircuitBreakerState>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
+        });
+
+        modelBuilder.Entity<RetryPolicy>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
+            entity.Property(e => e.BackoffSeconds).HasColumnType("jsonb");
+            entity.Property(e => e.RetryOnExceptions).HasColumnType("jsonb");
+            entity.Property(e => e.SkipOnExceptions).HasColumnType("jsonb");
+        });
+
+        // Decisions Audit
+        modelBuilder.Entity<DecisionAuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.DecisionId);
+        });
+        modelBuilder.Entity<YouTubeCredential>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
+        });
+
+        modelBuilder.Entity<YouTubeUploadResult>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.YouTubeVideoId);
+        });
+        modelBuilder.Entity<TikTokCredential>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
+        });
+
+        modelBuilder.Entity<TikTokUploadResult>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TikTokVideoId);
+        });
+        modelBuilder.Entity<InstagramCredential>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
+        });
+
+        modelBuilder.Entity<InstagramUploadResult>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.InstagramMediaId);
+        });
+        modelBuilder.Entity<FacebookCredential>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
+        });
+
+        modelBuilder.Entity<LinkedInCredential>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AgentKey).IsUnique();
         });
     }
 }

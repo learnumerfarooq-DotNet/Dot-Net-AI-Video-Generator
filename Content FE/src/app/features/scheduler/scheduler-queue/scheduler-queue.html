@@ -1,21 +1,109 @@
-<div class="page-content scheduler-container">
-  <section class="panel">
-    <header class="panel-header">
-      <h2>Queue Operations</h2>
-      <i class="fa-solid fa-layer-group"></i>
-    </header>
-    <div class="jobs-list">
-      <article class="job-card" *ngFor="let job of schedulerStore.queueJobs()">
-        <div class="job-info">
-          <div class="job-title">{{ job.name }}</div>
-          <div class="job-meta">{{ job.queueMode }} &bull; {{ job.notes }}</div>
+<div class="h-full flex flex-col bg-bg-main p-6 gap-6">
+
+  <!-- Queue Health -->
+  <div class="flex gap-6 shrink-0">
+    <div class="bg-card border border-border rounded-xl p-6 flex-1 flex justify-between items-center">
+      <div>
+        <h2 class="text-2xl font-bold text-text-primary mb-1">Queue Monitor</h2>
+        <div class="text-sm text-text-secondary">Real-time status of all execution queues</div>
+      </div>
+      <div class="flex gap-8 text-center border-l border-border pl-8" *ngIf="schedulerStore.queueStats() as stats; else loadingStats">
+        <div>
+          <div class="text-2xl font-bold text-accent-green">{{ stats.workersActive || 4 }}</div>
+          <div class="text-xs text-text-secondary uppercase mt-1">Active Workers</div>
         </div>
-        <span class="job-status status-active">{{ job.status }}</span>
-      </article>
-      <div class="empty-state" *ngIf="!schedulerStore.queueJobs().length">
-        <i class="fa-solid fa-list-check"></i>
-        <p>No queued operations.</p>
+        <div>
+          <div class="text-2xl font-bold text-accent-blue">{{ schedulerStore.queueJobs().length }}</div>
+          <div class="text-xs text-text-secondary uppercase mt-1">Queue Depth</div>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-text-primary">{{ stats.avgWaitTime || '1.2s' }}</div>
+          <div class="text-xs text-text-secondary uppercase mt-1">Avg Wait</div>
+        </div>
+      </div>
+      <ng-template #loadingStats>
+        <div class="flex gap-8 text-center border-l border-border pl-8 text-text-secondary">
+          Loading stats...
+        </div>
+      </ng-template>
+    </div>
+  </div>
+
+  <!-- Hangfire Queue Stats -->
+  <div class="grid grid-cols-4 gap-6 shrink-0" *ngIf="schedulerStore.queueStats() as stats">
+    <div class="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
+      <div class="w-10 h-10 rounded-full bg-accent-blue/10 text-accent-blue flex items-center justify-center text-lg mb-1">
+        <i class="fa-solid fa-robot"></i>
+      </div>
+      <div class="text-xl font-bold text-text-primary">{{ stats.aiQueue || 0 }}</div>
+      <div class="text-xs text-text-secondary font-bold uppercase">AI Queue</div>
+    </div>
+    <div class="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
+      <div class="w-10 h-10 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center text-lg mb-1">
+        <i class="fa-solid fa-film"></i>
+      </div>
+      <div class="text-xl font-bold text-text-primary">{{ stats.ffmpegQueue || 0 }}</div>
+      <div class="text-xs text-text-secondary font-bold uppercase">FFmpeg Queue</div>
+    </div>
+    <div class="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
+      <div class="w-10 h-10 rounded-full bg-orange-500/10 text-orange-400 flex items-center justify-center text-lg mb-1">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+      </div>
+      <div class="text-xl font-bold text-text-primary">{{ stats.uploadQueue || 0 }}</div>
+      <div class="text-xs text-text-secondary font-bold uppercase">Upload Queue</div>
+    </div>
+    <div class="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm">
+      <div class="w-10 h-10 rounded-full bg-bg-card-hover border border-border text-text-primary flex items-center justify-center text-lg mb-1">
+        <i class="fa-solid fa-layer-group"></i>
+      </div>
+      <div class="text-xl font-bold text-text-primary">{{ stats.defaultQueue || 0 }}</div>
+      <div class="text-xs text-text-secondary font-bold uppercase">Default Queue</div>
+    </div>
+  </div>
+
+  <!-- Active Queue Items -->
+  <div class="flex-1 bg-card border border-border rounded-xl flex flex-col min-h-0 overflow-hidden">
+    <div class="p-4 border-b border-border font-bold text-text-primary flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-list-check text-accent-blue"></i>
+        <h3>Active / Enqueued Jobs</h3>
       </div>
     </div>
-  </section>
+    
+    <div class="flex-1 overflow-y-auto">
+      <table class="w-full text-left text-sm text-text-primary border-collapse">
+        <thead class="bg-bg-main sticky top-0 z-10 shadow-sm border-b border-border">
+          <tr>
+            <th class="p-4 font-medium text-text-secondary pl-6">Job ID</th>
+            <th class="p-4 font-medium text-text-secondary">Type</th>
+            <th class="p-4 font-medium text-text-secondary">Agent</th>
+            <th class="p-4 font-medium text-text-secondary">Queued At</th>
+            <th class="p-4 font-medium text-text-secondary">Started At</th>
+            <th class="p-4 font-medium text-text-secondary">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of schedulerStore.queueJobs()" class="border-b border-border hover:bg-bg-card-hover transition-colors">
+            <td class="p-4 pl-6 font-mono text-xs">{{ job.id }}</td>
+            <td class="p-4 font-medium">{{ job.name }}</td>
+            <td class="p-4"><span class="px-2 py-1 bg-bg-card border border-border rounded text-xs font-mono">{{ job.agentKey }}</span></td>
+            <td class="p-4 text-text-secondary">{{ job.queuedAt }}</td>
+            <td class="p-4 text-text-secondary">{{ job.startedAt || '-' }}</td>
+            <td class="p-4">
+              <span class="px-2 py-1 rounded text-xs font-bold uppercase flex items-center gap-2 w-max" [ngClass]="job.status === 'Processing' ? 'bg-blue-500/10 text-accent-blue' : 'bg-gray-500/10 text-text-secondary'">
+                <i *ngIf="job.status === 'Processing'" class="fa-solid fa-circle-notch fa-spin"></i>
+                {{ job.status }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="!schedulerStore.queueJobs().length" class="flex flex-col items-center justify-center py-12 text-text-secondary">
+        <i class="fa-solid fa-mug-hot text-4xl mb-4 opacity-50 text-accent-blue"></i>
+        <p>No jobs currently in the queue.</p>
+      </div>
+    </div>
+  </div>
+
 </div>
