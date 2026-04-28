@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ContentFactoryStore } from '../../../core/store/content-factory.store';
 import { AgentsStore } from '../store/agents.store';
 import { AgentChatComponent } from '../../../shared/agent-chat/agent-chat';
 
 @Component({
   selector: 'app-main-brain',
-  imports: [CommonModule, ReactiveFormsModule, AgentChatComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, AgentChatComponent],
   templateUrl: './main-brain.html',
   styleUrls: ['./main-brain.css', '../agent-workspace-shared.css']
 })

@@ -43,14 +43,33 @@ public sealed class StudioWorkspaceFacade : IStudioWorkspaceFacade
         return await _driveService.UploadFileAsync(settings, folderId, fileName, contentType, fileStream, cancellationToken);
     }
 
-    public async Task<(Stream Content, string ContentType, string FileName)?> DownloadDriveFileAsync(string fileId, CancellationToken cancellationToken)
+    public async Task<(Stream Content, string ContentType, string FileName, long Size)?> DownloadDriveFileAsync(string fileId, CancellationToken cancellationToken)
     {
         var settings = await _store.GetDriveSettingsAsync(cancellationToken);
         return await _driveService.DownloadFileAsync(settings, fileId, cancellationToken);
     }
 
-    public Task<WorkspaceBootstrapResponse> GetBootstrapAsync(CancellationToken cancellationToken)
-        => _store.GetBootstrapAsync(cancellationToken);
+    public async Task<WorkspaceBootstrapResponse> GetBootstrapAsync(CancellationToken cancellationToken)
+    {
+        var bootstrap = await _store.GetBootstrapAsync(cancellationToken);
+        
+        try
+        {
+            var quota = await _driveService.GetStorageQuotaAsync(bootstrap.Drive, cancellationToken);
+            var updatedDrive = bootstrap.Drive with 
+            { 
+                StorageUsed = quota.Used, 
+                StorageAvailable = quota.Limit 
+            };
+            return bootstrap with { Drive = updatedDrive };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($">>> Bootstrap Drive Quota Error: {ex.Message}");
+            var updatedDrive = bootstrap.Drive with { StorageQuotaError = ex.Message };
+            return bootstrap with { Drive = updatedDrive };
+        }
+    }
 
     public Task<DashboardWorkspaceDto> GetDashboardSummaryAsync(CancellationToken cancellationToken)
         => _store.GetDashboardSummaryAsync(cancellationToken);

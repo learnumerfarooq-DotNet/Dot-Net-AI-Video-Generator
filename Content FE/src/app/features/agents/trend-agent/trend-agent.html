@@ -20,7 +20,7 @@
       </div>
       
       <div class="flex items-center gap-2">
-        <button (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)" 
+        <button [routerLink]="['/settings', agent.key]" 
                 class="premium-button secondary flex items-center gap-2">
           <i class="fa-solid fa-sliders"></i>
           <span>Configure</span>

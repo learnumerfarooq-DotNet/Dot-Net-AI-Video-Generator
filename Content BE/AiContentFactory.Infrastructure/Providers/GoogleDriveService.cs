@@ -26,7 +26,7 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
             ? "trashed = false" 
             : $"'{folderToList}' in parents and trashed = false";
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"https://www.googleapis.com/drive/v3/files?q={Uri.EscapeDataString(query)}&fields=files(id,name,mimeType,createdTime,webViewLink)");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"https://www.googleapis.com/drive/v3/files?q={Uri.EscapeDataString(query)}&fields=files(id,name,mimeType,size,createdTime,webViewLink)");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
@@ -45,6 +45,9 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
             var id = file.GetProperty("id").GetString() ?? "";
             var name = file.GetProperty("name").GetString() ?? "";
             var mimeType = file.GetProperty("mimeType").GetString() ?? "";
+            var sizeStr = file.TryGetProperty("size", out var s) ? s.GetString() : "0";
+            long.TryParse(sizeStr, out var size);
+            
             var createdTime = file.TryGetProperty("createdTime", out var ct) ? ct.GetDateTimeOffset() : DateTimeOffset.UtcNow;
             
             // Map Drive files to the structure expected by the explorer
@@ -61,8 +64,10 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
                 id,
                 name,
                 type,
-                "Unknown",
-                createdTime.ToString("MMM dd")
+                size,
+                createdTime.ToString("MMM dd"),
+                type == "folder",
+                mimeType
             ));
         }
 
@@ -93,7 +98,7 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(), cancellationToken: cancellationToken);
         var id = doc.RootElement.GetProperty("id").GetString() ?? "";
 
-        return new DriveFileDto(id, folderName, "folder", "-", DateTimeOffset.UtcNow.ToString("MMM dd"));
+        return new DriveFileDto(id, folderName, "folder", 0, DateTimeOffset.UtcNow.ToString("MMM dd"), true, "application/vnd.google-apps.folder");
     }
 
     public async Task<DriveFileDto?> UploadFileAsync(DriveSettingsDto settings, string? folderId, string fileName, string contentType, Stream fileStream, CancellationToken cancellationToken)
@@ -139,16 +144,34 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
         else if (mimeType.StartsWith("image/")) type = "image";
         else if (mimeType.Contains("google-apps")) type = "google-doc";
 
-        return new DriveFileDto(id, name, type, "Unknown", createdTime.ToString("MMM dd"));
+        // Ensure name has extension if missing and not a folder
+        if (type != "folder" && !name.Contains('.') && !string.IsNullOrEmpty(mimeType))
+        {
+            var ext = mimeType switch
+            {
+                "video/mp4" => ".mp4",
+                "video/quicktime" => ".mov",
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                "application/pdf" => ".pdf",
+                "application/json" => ".json",
+                "text/markdown" => ".md",
+                "text/plain" => ".txt",
+                _ => ""
+            };
+            name += ext;
+        }
+
+        return new DriveFileDto(id, name, type, 0, createdTime.ToString("MMM dd"), type == "folder", mimeType);
     }
 
-    public async Task<(Stream Content, string ContentType, string FileName)?> DownloadFileAsync(DriveSettingsDto settings, string fileId, CancellationToken cancellationToken)
+    public async Task<(Stream Content, string ContentType, string FileName, long Size)?> DownloadFileAsync(DriveSettingsDto settings, string fileId, CancellationToken cancellationToken)
     {
         var accessToken = await GetAccessTokenAsync(settings, cancellationToken);
         if (accessToken == null) return null;
 
         // 1. Get Metadata to get the filename and type
-        var metaRequest = new HttpRequestMessage(HttpMethod.Get, $"https://www.googleapis.com/drive/v3/files/{fileId}?fields=name,mimeType");
+        var metaRequest = new HttpRequestMessage(HttpMethod.Get, $"https://www.googleapis.com/drive/v3/files/{fileId}?fields=name,mimeType,size");
         metaRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var metaResponse = await httpClient.SendAsync(metaRequest, cancellationToken);
         if (!metaResponse.IsSuccessStatusCode) return null;
@@ -156,6 +179,12 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
         using var metaDoc = await JsonDocument.ParseAsync(await metaResponse.Content.ReadAsStreamAsync(), cancellationToken: cancellationToken);
         var fileName = metaDoc.RootElement.GetProperty("name").GetString() ?? "download";
         var contentType = metaDoc.RootElement.GetProperty("mimeType").GetString() ?? "application/octet-stream";
+        
+        long size = 0;
+        if (metaDoc.RootElement.TryGetProperty("size", out var s))
+        {
+            long.TryParse(s.GetString(), out size);
+        }
 
         // Handle Google Workspace documents (must be exported)
         bool isGoogleDoc = contentType.StartsWith("application/vnd.google-apps.");
@@ -165,9 +194,10 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
         {
             var exportType = contentType switch
             {
-                "application/vnd.google-apps.document" => ("application/pdf", ".pdf"),
+                "application/vnd.google-apps.document" => ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"),
                 "application/vnd.google-apps.spreadsheet" => ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"),
-                "application/vnd.google-apps.presentation" => ("application/pdf", ".pdf"),
+                "application/vnd.google-apps.presentation" => ("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx"),
+                "application/vnd.google-apps.drawing" => ("image/png", ".png"),
                 "application/vnd.google-apps.script" => ("application/vnd.google-apps.script+json", ".json"),
                 _ => ("application/pdf", ".pdf")
             };
@@ -198,15 +228,20 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
         var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            response.Dispose();
             return null;
         }
 
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        return (stream, contentType, fileName);
+        // Buffer entire response to MemoryStream to prevent issues with disposed HTTP response
+        var memoryStream = new MemoryStream();
+        using (var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken))
+        {
+            await contentStream.CopyToAsync(memoryStream, 81920, cancellationToken); // 80KB buffer
+        }
+        memoryStream.Position = 0;
+        return (memoryStream, contentType, fileName, size);
     }
 
     public async Task<string> WatchFolderAsync(DriveSettingsDto settings, string folderId, string webhookUrl, CancellationToken cancellationToken)
@@ -236,22 +271,91 @@ public sealed class GoogleDriveService(HttpClient httpClient) : IGoogleDriveServ
         return doc.RootElement.GetProperty("resourceId").GetString() ?? "Success";
     }
 
+    public async Task<(long Used, long Limit)> GetStorageQuotaAsync(DriveSettingsDto settings, CancellationToken cancellationToken)
+    {
+        try 
+        {
+            var accessToken = await GetAccessTokenAsync(settings, cancellationToken);
+            if (accessToken == null) 
+            {
+                Console.WriteLine(">>> Drive Quota: Access token is NULL.");
+                return (0, 0);
+            }
+
+            // Using full fields list for debugging and compatibility
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/drive/v3/about?fields=storageQuota(limit,usage)");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.Add("User-Agent", "AiContentFactory/1.0");
+
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"Drive Quota API Error: {response.StatusCode} - {body}");
+            }
+
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("storageQuota", out var quota))
+            {
+                long usage = 0;
+                if (quota.TryGetProperty("usage", out var u))
+                {
+                    if (u.ValueKind == JsonValueKind.String) long.TryParse(u.GetString(), out usage);
+                    else if (u.ValueKind == JsonValueKind.Number) usage = u.GetInt64();
+                }
+
+                long limit = 0;
+                if (quota.TryGetProperty("limit", out var l))
+                {
+                    if (l.ValueKind == JsonValueKind.String) long.TryParse(l.GetString(), out limit);
+                    else if (l.ValueKind == JsonValueKind.Number) limit = l.GetInt64();
+                }
+                
+                Console.WriteLine($">>> Drive Quota Parsed: Used={usage}, Limit={limit}");
+                return (usage, limit);
+            }
+            
+            throw new InvalidOperationException($"Drive Quota: 'storageQuota' missing in response. Body: {body}");
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            throw new InvalidOperationException($">>> Drive Quota Exception: {ex.Message}", ex);
+        }
+    }
+
     private async Task<string?> GetAccessTokenAsync(DriveSettingsDto settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.ClientId) || string.IsNullOrWhiteSpace(settings.RefreshToken))
-            return null;
-
-        var tokenResponse = await httpClient.PostAsync("https://oauth2.googleapis.com/token", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["client_id"] = settings.ClientId,
-            ["client_secret"] = settings.ClientSecret,
-            ["refresh_token"] = settings.RefreshToken,
-            ["grant_type"] = "refresh_token"
-        }), cancellationToken);
+            Console.WriteLine($">>> Drive Auth: Missing credentials. ClientId: {!string.IsNullOrEmpty(settings.ClientId)}, RefreshToken: {!string.IsNullOrEmpty(settings.RefreshToken)}");
+            return null;
+        }
 
-        if (!tokenResponse.IsSuccessStatusCode) return null;
+        try 
+        {
+            var tokenResponse = await httpClient.PostAsync("https://oauth2.googleapis.com/token", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = settings.ClientId,
+                ["client_secret"] = settings.ClientSecret,
+                ["refresh_token"] = settings.RefreshToken,
+                ["grant_type"] = "refresh_token"
+            }), cancellationToken);
 
-        using var tokenDoc = await JsonDocument.ParseAsync(await tokenResponse.Content.ReadAsStreamAsync(), cancellationToken: cancellationToken);
-        return tokenDoc.RootElement.GetProperty("access_token").GetString();
+            if (!tokenResponse.IsSuccessStatusCode) 
+            {
+                var error = await tokenResponse.Content.ReadAsStringAsync(cancellationToken);
+                Console.WriteLine($">>> Drive Auth Error: {tokenResponse.StatusCode} - {error}");
+                return null;
+            }
+
+            using var tokenDoc = await JsonDocument.ParseAsync(await tokenResponse.Content.ReadAsStreamAsync(), cancellationToken: cancellationToken);
+            return tokenDoc.RootElement.GetProperty("access_token").GetString();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($">>> Drive Auth Exception: {ex.Message}");
+            return null;
+        }
     }
 }

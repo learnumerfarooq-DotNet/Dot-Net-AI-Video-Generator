@@ -492,17 +492,40 @@ public sealed class StudioWorkspaceStore : IStudioWorkspaceStore
         config.ClientSecret = encryption.Encrypt(request.ClientSecret);
         config.RefreshToken = request.RefreshToken;
         config.RootFolderId = request.RootFolderId;
+        config.PollingInterval = request.PollingInterval;
+        config.AutoCreateFolders = request.AutoCreateFolders;
         config.UpdatedAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return new DriveSettingsDto(config.ClientId, encryption.Decrypt(config.ClientSecret), config.RefreshToken, config.RootFolderId);
+        return new DriveSettingsDto(
+            config.ClientId, 
+            encryption.Decrypt(config.ClientSecret), 
+            config.RefreshToken, 
+            config.RootFolderId,
+            !string.IsNullOrEmpty(config.RefreshToken),
+            !string.IsNullOrEmpty(config.RefreshToken) ? "Linked Google Account" : "Not linked",
+            null,
+            null,
+            config.PollingInterval,
+            config.AutoCreateFolders);
     }
 
     public async Task<DriveSettingsDto> GetDriveSettingsAsync(CancellationToken cancellationToken)
     {
         var config = await dbContext.DriveConfigs.FirstOrDefaultAsync(cancellationToken);
         if (config == null) return new DriveSettingsDto("", "", "", "root");
-        return new DriveSettingsDto(config.ClientId, encryption.Decrypt(config.ClientSecret), config.RefreshToken, config.RootFolderId);
+        
+        return new DriveSettingsDto(
+            config.ClientId, 
+            encryption.Decrypt(config.ClientSecret), 
+            config.RefreshToken, 
+            config.RootFolderId,
+            !string.IsNullOrEmpty(config.RefreshToken),
+            !string.IsNullOrEmpty(config.RefreshToken) ? "Linked Google Account" : "Not linked",
+            null,
+            null,
+            config.PollingInterval,
+            config.AutoCreateFolders);
     }
 
     private static UsageSeriesDto[] BuildUsageSeries(IReadOnlyList<StudioAgentEntity> agents, IReadOnlyList<StudioAgentUsageEntity> usages)

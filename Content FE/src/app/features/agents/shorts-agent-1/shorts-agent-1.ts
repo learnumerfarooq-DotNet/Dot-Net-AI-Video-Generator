@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ContentFactoryStore } from '../../../core/store/content-factory.store';
 import { AgentsStore } from '../store/agents.store';
 import { AgentChatComponent } from '../../../shared/agent-chat/agent-chat';
@@ -9,7 +10,7 @@ import { ProcessingVideosComponent } from '../../../shared/components/processing
 
 @Component({
   selector: 'app-shorts-agent-1',
-  imports: [CommonModule, ReactiveFormsModule, AgentChatComponent, DualDriveExplorerComponent, ProcessingVideosComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, AgentChatComponent, DualDriveExplorerComponent, ProcessingVideosComponent],
   templateUrl: './shorts-agent-1.html',
   styleUrls: ['./shorts-agent-1.css', '../agent-workspace-shared.css']
 })

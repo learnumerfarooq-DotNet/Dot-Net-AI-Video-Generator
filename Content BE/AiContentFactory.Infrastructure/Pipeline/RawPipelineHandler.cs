@@ -55,7 +55,7 @@ public sealed class RawPipelineHandler
 
             // 2. Download to Temp
             var tempDir = _tempStorage.CreateJobDirectory(jobId);
-            var (stream, contentType, fileName) = await _driveService.DownloadFileAsync(settings, job.DriveFileId, ct)
+            var (stream, contentType, fileName, size) = await _driveService.DownloadFileAsync(settings, job.DriveFileId, ct)
                 ?? throw new InvalidOperationException("Failed to download file from Drive.");
 
             var localPath = Path.Combine(tempDir, fileName);

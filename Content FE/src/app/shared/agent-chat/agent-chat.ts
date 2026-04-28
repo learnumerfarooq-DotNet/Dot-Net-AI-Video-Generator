@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, inject, AfterViewChecked, ElementRef, ViewChild, effect, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AgentsStore } from '../../features/agents/store/agents.store';
 import { AgentSummary } from '../../core/models/content-factory.models';
 import { ContentFactoryStore } from '../../core/store/content-factory.store';
 
 @Component({
   selector: 'app-agent-chat',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './agent-chat.html',
   styleUrl: './agent-chat.css'
 })

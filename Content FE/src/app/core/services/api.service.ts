@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE } from '../constants/api-endpoints';
 
@@ -46,5 +46,9 @@ export class ApiService {
 
   getBlob(url: string): Observable<Blob> {
     return this.http.get(this.getUrl(url), { responseType: 'blob' });
+  }
+
+  getBlobResponse(url: string): Observable<HttpResponse<Blob>> {
+    return this.http.get(this.getUrl(url), { responseType: 'blob', observe: 'response' });
   }
 }

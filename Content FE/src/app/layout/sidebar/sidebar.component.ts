@@ -45,6 +45,7 @@ const TAB_TO_PATH: Record<string, string> = {
   'settings-instagram-agent':         '/settings/instagram-agent',
   'settings-facebook-agent':          '/settings/facebook-agent',
   'settings-linkedin-agent':          '/settings/linkedin-agent',
+  'settings-unified':                 '/settings/main-brain',
   // Drive
   'drive-explorer': '/drive/explorer',
   'drive-mapping':  '/drive/mapping',

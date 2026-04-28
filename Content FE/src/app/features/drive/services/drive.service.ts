@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
+import { HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ENDPOINTS } from '../../../core/constants/api-endpoints';
+import { API_BASE, ENDPOINTS } from '../../../core/constants/api-endpoints';
 import { DriveSettings } from '../../../core/models/content-factory.models';
 import { ApiService } from '../../../core/services/api.service';
 
@@ -8,8 +9,10 @@ export interface DriveFile {
   id:   string;
   name: string;
   type: string;
-  size: string;
+  size: number;
   date: string;
+  isFolder: boolean;
+  mimeType?: string;
 }
 
 export type DriveFileDto = {
@@ -67,6 +70,11 @@ export class DriveService {
     return this.api.getBlob(`${ENDPOINTS.DRIVE}/files/${fileId}/download`);
   }
 
+  /** Downloads a file from the backend and returns the full response to extract headers. */
+  downloadFileWithResponse(fileId: string): Observable<HttpResponse<Blob>> {
+    return this.api.getBlobResponse(`${ENDPOINTS.DRIVE}/files/${fileId}/download`);
+  }
+
   /** Creates a sub-folder inside the specified Drive folder (or root if none provided). */
   createFolder(name: string, folderId?: string): Observable<DriveFile> {
     const url = folderId ? `${ENDPOINTS.DRIVE}/folders?folderId=${folderId}` : `${ENDPOINTS.DRIVE}/folders`;
@@ -105,5 +113,13 @@ export class DriveService {
 
   startPipeline(fileId: string, fileName: string): Observable<any> {
     return this.api.postAction<any>(ENDPOINTS.DRIVE, 'pipeline/start', { fileId, fileName });
+  }
+
+  getQuota(): Observable<{ used: number, limit: number, error: string | null }> {
+    return this.api.getAction<any>(ENDPOINTS.DRIVE, 'quota');
+  }
+
+  getDownloadUrl(fileId: string): string {
+    return `${API_BASE}/${ENDPOINTS.DRIVE}/files/${fileId}/download`;
   }
 }

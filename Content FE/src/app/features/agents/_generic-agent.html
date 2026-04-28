@@ -12,7 +12,7 @@
         </div>
       </div>
       <button type="button" class="ghost-button"
-              (click)="store.setSection('settings'); store.setSideTab('settings-' + agent.key)">
+              [routerLink]="['/settings', agent.key]">
         <i class="fa-solid fa-sliders"></i><span>Configure</span>
       </button>
     </header>

@@ -39,4 +39,8 @@ export class SettingsService {
   saveGlobalSettings(settings: any): Observable<any> {
     return this.api.put<any>(ENDPOINTS.SETTINGS, 'global', settings);
   }
+  
+  getYouTubeAuthUrl(agentKey: string, redirectUri: string): Observable<string> {
+    return this.api.getAction<string>(ENDPOINTS.SETTINGS, `youtube/auth-url`, { agentKey, redirectUri });
+  }
 }

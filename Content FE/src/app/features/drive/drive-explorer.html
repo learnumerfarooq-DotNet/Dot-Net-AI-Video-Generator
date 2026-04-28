@@ -83,7 +83,7 @@
             <div class="text-center w-full">
               <div class="text-sm font-medium text-text-primary truncate px-2" [title]="item.name">{{ item.name }}</div>
               <div class="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-bold">
-                {{ (item.isFolder || item.type === 'folder') ? 'Folder' : (item.size | number:'1.0-0') + ' B' }}
+                {{ (item.isFolder || item.type === 'folder') ? 'Folder' : (item.size / 1024 / 1024 | number:'1.1-1') + ' MB' }}
               </div>
             </div>
 
@@ -126,7 +126,7 @@
                 </div>
               </td>
               <td class="p-4 text-text-secondary">{{ item.modifiedTime || item.date }}</td>
-              <td class="p-4 text-text-secondary uppercase text-[10px] font-bold">{{ (item.isFolder || item.type === 'folder') ? 'Folder' : (item.size || 0) + ' B' }}</td>
+              <td class="p-4 text-text-secondary uppercase text-[10px] font-bold">{{ (item.isFolder || item.type === 'folder') ? 'Folder' : (item.size / 1024 / 1024 | number:'1.1-1') + ' MB' }}</td>
               <td class="p-4 text-right pr-6">
                 <div class="flex gap-2 justify-end">
                   <button (click)="downloadFile($event, item)" class="w-8 h-8 flex items-center justify-center rounded border border-border text-text-secondary hover:text-accent-blue hover:bg-blue-500/10"><i class="fa-solid fa-download text-xs"></i></button>
@@ -161,7 +161,7 @@
           <div class="flex justify-between border-t border-border pt-2">
             <div class="flex flex-col gap-1">
               <span class="text-[10px] text-text-secondary font-bold uppercase">Size</span>
-              <span class="text-xs text-text-primary">{{ file.size }} B</span>
+              <span class="text-xs text-text-primary">{{ file.size / 1024 / 1024 | number:'1.1-1' }} MB</span>
             </div>
             <div class="flex flex-col gap-1 text-right">
               <span class="text-[10px] text-text-secondary font-bold uppercase">Type</span>
@@ -190,19 +190,22 @@
         <div class="space-y-4">
           <div class="flex justify-between items-center text-xs">
             <span class="text-text-secondary">Space Used</span>
-            <span class="text-text-primary font-bold">1.2 GB / 15 GB</span>
+            <span class="text-text-primary font-bold">
+              {{ driveStore.accountStorageUsedGB() }} GB / {{ driveStore.formattedAccountLimit() }}
+            </span>
           </div>
           <div class="w-full h-2 bg-bg-main rounded-full overflow-hidden border border-border">
-            <div class="h-full bg-accent-blue" style="width: 8%"></div>
+            <div class="h-full bg-accent-blue transition-all duration-1000" 
+                 [style.width.%]="driveStore.storagePercent()"></div>
           </div>
           <div class="grid grid-cols-2 gap-2 text-[10px]">
             <div class="flex flex-col gap-1 p-2 bg-bg-deep rounded-lg border border-border">
               <span class="text-text-secondary uppercase tracking-wider font-bold">Files</span>
-              <span class="text-text-primary font-bold text-sm">{{ driveStore.driveFileCount() }}</span>
+              <span class="text-text-primary font-bold text-sm">{{ driveStore.driveFileCount() - driveStore.folderCount() }}</span>
             </div>
             <div class="flex flex-col gap-1 p-2 bg-bg-deep rounded-lg border border-border">
               <span class="text-text-secondary uppercase tracking-wider font-bold">Folders</span>
-              <span class="text-text-primary font-bold text-sm">4</span>
+              <span class="text-text-primary font-bold text-sm">{{ driveStore.folderCount() }}</span>
             </div>
           </div>
         </div>

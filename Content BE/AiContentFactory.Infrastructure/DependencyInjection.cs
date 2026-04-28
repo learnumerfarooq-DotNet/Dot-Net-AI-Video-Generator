@@ -156,24 +156,24 @@ public static class DependencyInjection
         services.AddScoped<TrendDiscoveryJob>();
         
         // NEW: Publishing
-        services.Configure<YouTubeOptions>(configuration.GetSection("YouTube"));
+        services.Configure<YouTubeOptions>(configuration.GetSection("Publishing:YouTube"));
         services.AddScoped<YouTubeOAuthManager>();
         services.AddScoped<YouTubeUploadService>();
         services.AddScoped<YouTubeAnalyticsService>();
         services.AddScoped<IPlatformPublisher, YouTubePublisher>();
 
-        services.Configure<TikTokOptions>(configuration.GetSection("TikTok"));
+        services.Configure<TikTokOptions>(configuration.GetSection("Publishing:TikTok"));
         services.AddScoped<TikTokOAuthManager>();
         services.AddScoped<IPlatformPublisher, TikTokPublisher>();
 
-        services.Configure<InstagramOptions>(configuration.GetSection("Instagram"));
+        services.Configure<InstagramOptions>(configuration.GetSection("Publishing:Instagram"));
         services.AddScoped<InstagramOAuthManager>();
         services.AddScoped<IPlatformPublisher, InstagramPublisher>();
 
-        services.Configure<FacebookOptions>(configuration.GetSection("Facebook"));
+        services.Configure<FacebookOptions>(configuration.GetSection("Publishing:Facebook"));
         services.AddScoped<IPlatformPublisher, FacebookPublisher>();
 
-        services.Configure<LinkedInOptions>(configuration.GetSection("LinkedIn"));
+        services.Configure<LinkedInOptions>(configuration.GetSection("Publishing:LinkedIn"));
         services.AddScoped<IPlatformPublisher, LinkedInPublisher>();
         
         services.AddScoped<StreamingUploadService>();

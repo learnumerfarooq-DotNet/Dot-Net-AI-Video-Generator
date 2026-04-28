@@ -23,7 +23,7 @@
         <button (click)="startRun()" *ngIf="status() !== 'running'" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border border-accent-green text-accent-green hover:bg-accent-green hover:text-white transition-all">Start Run</button>
         <button (click)="stopRun()" *ngIf="status() === 'running'" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border border-accent-red text-accent-red hover:bg-accent-red hover:text-white transition-all">Stop</button>
         <button (click)="toggleBrainPause()" class="px-4 py-2 border border-border rounded-lg text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary hover:bg-bg-card-hover transition-all">Pause Brain</button>
-        <button (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)" class="w-9 h-9 flex items-center justify-center border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card-hover transition-all"><i class="fa-solid fa-sliders text-xs"></i></button>
+        <button [routerLink]="['/settings', agent.key]" class="w-9 h-9 flex items-center justify-center border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card-hover transition-all"><i class="fa-solid fa-sliders text-xs"></i></button>
       </div>
     </header>
 

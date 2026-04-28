@@ -187,6 +187,7 @@ export type DriveSettings = {
   storageAvailable?: number;
   pollingInterval?: number;
   autoCreateFolders?: boolean;
+  storageQuotaError?: string;
 };
 
 export type DriveFile = {

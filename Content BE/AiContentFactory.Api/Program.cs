@@ -35,7 +35,8 @@ builder.Services.AddCors(options =>
         .WithOrigins("http://localhost:4200", "http://localhost:4201", "http://localhost:4210")
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials()));
+        .AllowCredentials()
+        .WithExposedHeaders("Content-Disposition")));
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<StudioDbContext>();

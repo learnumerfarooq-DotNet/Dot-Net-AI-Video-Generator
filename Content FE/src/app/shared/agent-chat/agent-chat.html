@@ -47,7 +47,7 @@
         <h3>Action Required</h3>
         <p>Configure the API provider in Settings to enable live agent interactions.</p>
         <button class="primary-button"
-                (click)="rootStore.setSection('settings'); rootStore.setSideTab('settings-' + agent.key)">
+                [routerLink]="['/settings', agent.key]">
           Configure API
         </button>
       </div>

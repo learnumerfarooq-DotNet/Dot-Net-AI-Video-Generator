@@ -1,6 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { ApiService } from '../../../core/services/api.service';
+import { ENDPOINTS } from '../../../core/constants/api-endpoints';
 import { 
   AgentChatResponse, 
   AgentRun, 
@@ -13,50 +14,46 @@ import {
   providedIn: 'root'
 })
 export class AgentWorkspaceService {
-  private http = inject(HttpClient);
-  private baseUrl = '/api/agents';
-  private memoryUrl = '/api/memory/local';
+  private api = inject(ApiService);
+  private memoryUrl = 'api/memory/local'; // Assuming memory is also on backend
 
   startRun(agentKey: string): Observable<{ runId: string }> {
-    return this.http.post<{ runId: string }>(`${this.baseUrl}/${agentKey}/run`, {});
+    return this.api.postAction<{ runId: string }>(ENDPOINTS.AGENTS, `${agentKey}/run`, {});
   }
 
   stopRun(agentKey: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/${agentKey}/stop`, {});
+    return this.api.postAction<void>(ENDPOINTS.AGENTS, `${agentKey}/stop`, {});
   }
 
   sendChat(agentKey: string, message: string): Observable<AgentChatResponse> {
-    return this.http.post<AgentChatResponse>(`${this.baseUrl}/${agentKey}/chat`, { message });
+    return this.api.postAction<AgentChatResponse>(ENDPOINTS.AGENTS, `${agentKey}/chat`, { message });
   }
 
   clearChat(agentKey: string): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${agentKey}/chat/cleanup`);
+    return this.api.postAction<void>(ENDPOINTS.AGENTS, `${agentKey}/chat/cleanup`, {});
   }
 
   streamChat(agentKey: string, message: string): Observable<AgentStreamChunk> {
-    // In a real app, you would use EventSource or a custom observable wrapper 
-    // around fetch to read the stream. Returning standard observable for now
-    // as placeholder.
-    return this.http.post<AgentStreamChunk>(`${this.baseUrl}/${agentKey}/chat/stream`, { message });
+    return this.api.postAction<AgentStreamChunk>(ENDPOINTS.AGENTS, `${agentKey}/chat/stream`, { message });
   }
 
   getRunHistory(agentKey: string, limit: number = 20): Observable<AgentRun[]> {
-    return this.http.get<AgentRun[]>(`${this.baseUrl}/${agentKey}/runs?limit=${limit}`);
+    return this.api.getAction<AgentRun[]>(ENDPOINTS.AGENTS, `${agentKey}/runs`, { limit });
   }
 
   getActiveJob(agentKey: string): Observable<VideoPipelineJob | null> {
-    return this.http.get<VideoPipelineJob | null>(`${this.baseUrl}/${agentKey}/active-job`);
+    return this.api.getAction<VideoPipelineJob | null>(ENDPOINTS.AGENTS, `${agentKey}/active-job`);
   }
 
   getLocalMemory(agentKey: string): Observable<any> {
-    return this.http.get<any>(`${this.memoryUrl}/${agentKey}`);
+    return this.api.getAction<any>(this.memoryUrl, agentKey);
   }
 
   updateLocalMemory(agentKey: string, config: any): Observable<void> {
-    return this.http.put<void>(`${this.memoryUrl}/${agentKey}`, config);
+    return this.api.putAction<void>(this.memoryUrl, agentKey, config);
   }
 
   getErrorLog(agentKey: string, limit: number = 5): Observable<ErrorLog[]> {
-    return this.http.get<ErrorLog[]>(`${this.baseUrl}/${agentKey}/errors?limit=${limit}`);
+    return this.api.getAction<ErrorLog[]>(ENDPOINTS.AGENTS, `${agentKey}/errors`, { limit });
   }
 }

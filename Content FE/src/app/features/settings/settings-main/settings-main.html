@@ -27,12 +27,13 @@
         </div>
 
         <!-- Global Settings Toggle -->
-        <button (click)="activeSection = 'global'"
+        <button (click)="activeSection = 'global'; settingsStore.setActiveAgent(null)"
                 class="w-full p-4 flex items-center gap-3 bg-bg-deep border-t border-border hover:bg-bg-card-hover transition-all text-left"
                 [ngClass]="activeSection === 'global' ? 'bg-primary-soft text-primary border-l-4 border-l-primary' : 'text-text-primary border-l-4 border-l-transparent'">
           <i class="fa-solid fa-earth-americas text-lg"></i>
           <span class="text-sm font-bold uppercase tracking-wide">Global Config</span>
         </button>
+
       </div>
 
       <!-- Quick Info Card -->
@@ -72,13 +73,25 @@
         </div>
 
         <div class="flex gap-3">
-          <button *ngIf="activeSection === 'agents'" (click)="testConnection()" class="px-4 py-2 border border-border rounded-lg text-sm font-bold text-text-primary hover:bg-bg-card-hover transition-all">
-            <i class="fa-solid fa-vial mr-2"></i> Test
+          <div *ngIf="settingsStore.testResult() as result" 
+               class="flex items-center px-4 py-2 rounded-lg text-xs font-bold mr-2 animate-fade-in"
+               [ngClass]="result.success ? 'bg-green-500/10 text-accent-green border border-green-500/20' : 'bg-red-500/10 text-accent-red border border-red-500/20'">
+            <i class="fa-solid mr-2" [ngClass]="result.success ? 'fa-circle-check' : 'fa-circle-exclamation'"></i>
+            {{ result.message }}
+            <button (click)="settingsStore.clearTestResult()" class="ml-2 opacity-50 hover:opacity-100">×</button>
+          </div>
+          <button *ngIf="activeSection === 'agents'" (click)="testConnection()" 
+                  [disabled]="!!settingsStore.testingAgentKey()"
+                  class="px-4 py-2 border border-border rounded-lg text-sm font-bold text-text-primary hover:bg-bg-card-hover transition-all disabled:opacity-50">
+            <i class="fa-solid mr-2" [ngClass]="settingsStore.testingAgentKey() ? 'fa-spinner fa-spin' : 'fa-vial'"></i> 
+            {{ settingsStore.testingAgentKey() ? 'Testing...' : 'Test' }}
           </button>
-          <button (click)="saveSettings()" class="px-6 py-2 bg-accent-blue text-white rounded-lg font-bold text-sm hover:bg-blue-600 transition-all shadow-lg">
-            Save Changes
+          <button (click)="saveSettings()" [disabled]="!!settingsStore.savingAgentKey()"
+                  class="px-6 py-2 bg-accent-blue text-white rounded-lg font-bold text-sm hover:bg-blue-600 transition-all shadow-lg disabled:opacity-50">
+            {{ settingsStore.savingAgentKey() ? 'Saving...' : 'Save Changes' }}
           </button>
         </div>
+
       </header>
 
       <!-- Panel Body -->

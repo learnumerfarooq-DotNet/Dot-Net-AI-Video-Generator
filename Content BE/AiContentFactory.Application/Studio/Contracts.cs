@@ -202,14 +202,23 @@ public sealed record DriveFileDto(
     string Id,
     string Name,
     string Type,
-    string Size,
-    string Date);
+    long Size,
+    string Date,
+    bool IsFolder = false,
+    string? MimeType = null);
 
 public sealed record DriveSettingsDto(
     string ClientId,
     string ClientSecret,
     string RefreshToken,
-    string RootFolderId);
+    string RootFolderId,
+    bool IsConnected = false,
+    string? ConnectedAccount = null,
+    long? StorageUsed = null,
+    long? StorageAvailable = null,
+    int PollingInterval = 30,
+    bool AutoCreateFolders = true,
+    string? StorageQuotaError = null);
 
 public sealed record SendAgentMessageRequest(string Message);
 
@@ -246,7 +255,9 @@ public sealed record SaveDriveSettingsRequest(
     string ClientId,
     string ClientSecret,
     string RefreshToken,
-    string RootFolderId);
+    string RootFolderId,
+    int PollingInterval = 30,
+    bool AutoCreateFolders = true);
 
 public sealed record ConnectionTestResult(
     bool Success,

@@ -182,7 +182,7 @@ export const SettingsStore = signalStore(
       patchState(store, { testResult: null });
     },
 
-    setActiveAgent(key: string) {
+    setActiveAgent(key: string | null) {
       patchState(store, { activeAgentKey: key });
     },
 
@@ -230,9 +230,13 @@ export const SettingsStore = signalStore(
       } catch (error) {
         patchState(store, { savingGlobal: false, status: `Global save failed: ${readError(error)}` });
       }
+    },
+    getYouTubeAuthUrl(agentKey: string, redirectUri: string) {
+      return settingsSvc.getYouTubeAuthUrl(agentKey, redirectUri);
     }
   }))
 );
+
 
 export { PROVIDER_REQUIREMENTS };
 

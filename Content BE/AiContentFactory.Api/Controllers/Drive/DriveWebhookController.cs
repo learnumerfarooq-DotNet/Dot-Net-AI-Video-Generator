@@ -5,7 +5,7 @@ using AiContentFactory.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace AiContentFactory.Api.Storage;
+namespace AiContentFactory.Api.Controllers.Drive;
 
 [ApiController]
 [Route("api/webhooks/drive")]

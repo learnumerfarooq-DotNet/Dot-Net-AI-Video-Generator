@@ -147,6 +147,8 @@ public sealed class StudioDriveConfigEntity
     public string ClientSecret { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
     public string RootFolderId { get; set; } = string.Empty;
+    public int PollingInterval { get; set; } = 30;
+    public bool AutoCreateFolders { get; set; } = true;
     public DateTimeOffset UpdatedAt { get; set; }
 }
 

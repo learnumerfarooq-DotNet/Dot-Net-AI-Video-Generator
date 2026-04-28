@@ -1,4 +1,6 @@
+using AiContentFactory.Infrastructure.Publishing.YouTube;
 using Microsoft.AspNetCore.Mvc;
+
 
 namespace AiContentFactory.Api.Controllers.Settings;
 
@@ -26,4 +28,15 @@ public class SettingsController : ControllerBase
 
     [HttpPut("global")]
     public IActionResult SaveGlobalSettings([FromBody] object settings) => Ok(settings);
+
+    [HttpGet("youtube/auth-url")]
+    public async Task<IActionResult> GetYouTubeAuthUrl(
+        [FromServices] YouTubeOAuthManager oauth,
+        [FromQuery] string agentKey,
+        [FromQuery] string redirectUri)
+    {
+        var url = await oauth.GetAuthorizationUrlAsync(agentKey, redirectUri);
+        return Ok(url);
+    }
 }
+

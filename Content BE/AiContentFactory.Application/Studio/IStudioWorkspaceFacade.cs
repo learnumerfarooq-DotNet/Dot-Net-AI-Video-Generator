@@ -28,7 +28,7 @@ public interface IStudioWorkspaceFacade
 
     Task<DriveFileDto?> CreateDriveFolderAsync(string? folderId, string folderName, CancellationToken cancellationToken);
     Task<DriveFileDto?> UploadDriveFileAsync(string? folderId, string fileName, string contentType, Stream fileStream, CancellationToken cancellationToken);
-    Task<(Stream Content, string ContentType, string FileName)?> DownloadDriveFileAsync(string fileId, CancellationToken cancellationToken);
+    Task<(Stream Content, string ContentType, string FileName, long Size)?> DownloadDriveFileAsync(string fileId, CancellationToken cancellationToken);
     Task<string> RegisterDriveWebhookAsync(string folderId, string webhookUrl, CancellationToken cancellationToken);
     
     Task<ConnectionTestResult> TestAgentConnectionAsync(string agentKey, CancellationToken cancellationToken);

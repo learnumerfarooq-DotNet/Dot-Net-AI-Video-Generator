@@ -38,16 +38,21 @@
 
     <!-- Storage Info -->
     <div class="bg-card border border-border rounded-xl p-6 flex flex-col gap-4">
-      <h3 class="font-bold text-text-primary flex items-center gap-2">
-        <i class="fa-solid fa-hard-drive text-accent-blue"></i> Drive Capacity
-      </h3>
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-text-primary flex items-center gap-2">
+          <i class="fa-solid fa-hard-drive text-accent-blue"></i> Drive Capacity
+        </h3>
+        <div *ngIf="driveStore.quotaError()" class="flex items-center gap-1 text-[10px] text-accent-red bg-accent-red/10 px-2 py-0.5 rounded-full" [title]="driveStore.quotaError()">
+          <i class="fa-solid fa-triangle-exclamation"></i> Sync Error
+        </div>
+      </div>
       <div class="space-y-4 pt-2">
         <div class="flex justify-between items-center text-xs">
           <span class="text-text-secondary">Usage Details</span>
-          <span class="text-text-primary font-bold">1.2 GB / 15.0 GB</span>
+          <span class="text-text-primary font-bold">{{ driveStore.accountStorageUsedGB() }} GB / {{ driveStore.formattedAccountLimit() }}</span>
         </div>
         <div class="w-full h-2 bg-bg-main rounded-full overflow-hidden border border-border">
-          <div class="h-full bg-accent-blue transition-all duration-1000" style="width: 8%"></div>
+          <div class="h-full bg-accent-blue transition-all duration-1000" [style.width.%]="driveStore.storagePercent()"></div>
         </div>
         <p class="text-[10px] text-text-secondary italic">
           * Storage usage is updated every {{ config.pollingInterval }}s.
